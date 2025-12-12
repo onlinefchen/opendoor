@@ -343,17 +343,42 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
     <script>
         // Configuration
         const CONFIG = {
-            rulesBaseUrl: 'https://raw.githubusercontent.com/onlinefchen/opendoor/main/surge_rule',
-            rulesJsonUrl: 'https://raw.githubusercontent.com/onlinefchen/opendoor/main/surge_rule/rules.json'
+            owner: 'onlinefchen',
+            repo: 'opendoor',
+            rulesPath: 'surge_rule',
+            rulesBaseUrl: 'https://raw.githubusercontent.com/onlinefchen/opendoor/main/surge_rule'
         };
 
         let rulesData = null;
 
-        // Load rules from JSON
+        // Load rules dynamically from GitHub API
         async function loadRules() {
             try {
-                const response = await fetch(CONFIG.rulesJsonUrl);
-                rulesData = await response.json();
+                // Use GitHub API to list files in surge_rule directory
+                const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.rulesPath}`;
+                const response = await fetch(apiUrl);
+                const files = await response.json();
+
+                // Filter .list files and create rules array
+                const rules = files
+                    .filter(file => file.name.endsWith('.list'))
+                    .map(file => {
+                        const name = file.name.replace('.list', '');
+                        // Format display name: snake_case -> Title Case
+                        const displayName = name
+                            .split('_')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
+                        return {
+                            file: file.name,
+                            name: displayName,
+                            // Default: enable most rules except some special ones
+                            default: !['proxy', 'final', 'bahamut', 'bilibili', 'netease_music', 'game', 'steam_download'].includes(name)
+                        };
+                    })
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                rulesData = { rules };
                 renderRules();
             } catch (error) {
                 console.error('Failed to load rules:', error);
