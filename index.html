@@ -545,7 +545,9 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
                 'quantumult': 'conf'
             };
 
-            const filename = `config.${fileExtension[format] || 'conf'}`;
+            // Generate filename with format and date: gist_surge_2025-12-13.conf
+            const today = new Date().toISOString().split('T')[0];
+            const filename = `gist_${format}_${today}.${fileExtension[format] || 'conf'}`;
 
             try {
                 const response = await fetch('https://api.github.com/gists', {
@@ -555,7 +557,7 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        description: `Subscription config - ${format}`,
+                        description: `Subscription config - ${format} - ${today}`,
                         public: false,
                         files: {
                             [filename]: {
