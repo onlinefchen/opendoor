@@ -793,11 +793,11 @@ proxy-providers:
 `;
             }
 
-            // Create a policy group for each selected rule (except reject and direct)
+            // Create a policy group for each selected rule (except reject, direct, and proxy which conflicts with main Proxy group)
             // Use simple names without emoji for Clash compatibility
             for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
-                if (ruleName === 'reject' || ruleName === 'direct') continue;
+                if (ruleName === 'reject' || ruleName === 'direct' || ruleName === 'proxy') continue;
 
                 const displayName = formatRuleName(ruleFile);
 
@@ -854,6 +854,9 @@ rules:
                     config += `  - RULE-SET,${ruleName},REJECT\n`;
                 } else if (ruleName === 'direct') {
                     config += `  - RULE-SET,${ruleName},DIRECT\n`;
+                } else if (ruleName === 'proxy') {
+                    // proxy.list rules go to main Proxy group
+                    config += `  - RULE-SET,${ruleName},Proxy\n`;
                 } else {
                     const displayName = formatRuleName(ruleFile);
                     config += `  - RULE-SET,${ruleName},${displayName}\n`;
