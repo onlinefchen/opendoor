@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 30px;
+            letter-spacing: -0.5px;
+        }
+
+        .section {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #86868b;
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        label:last-child {
+            border-bottom: none;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            accent-color: #0071e3;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #0071e3;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            font-size: 12px;
+            color: #86868b;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        button {
+            background: #0071e3;
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #0077ed;
+        }
+
+        button:active {
+            background: #006edb;
+        }
+
+        .output {
+            margin-top: 20px;
+            padding: 16px;
+            background: #1d1d1f;
+            border-radius: 8px;
+            color: #f5f5f7;
+            font-size: 13px;
+            word-break: break-all;
+            display: none;
+        }
+
+        .output.show {
+            display: block;
+        }
+
+        .output-label {
+            color: #86868b;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .output-content {
+            user-select: all;
+        }
+
+        .copy-btn {
+            background: #2c2c2e;
+            margin-top: 12px;
+            padding: 10px 20px;
+        }
+
+        .copy-btn:hover {
+            background: #3a3a3c;
+        }
+
+        .status {
+            font-size: 12px;
+            color: #86868b;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .format-select {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .format-option {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .format-option:hover {
+            border-color: #0071e3;
+        }
+
+        .format-option.selected {
+            border-color: #0071e3;
+            background: #e8f4fd;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Subscription Converter</h1>
+
+        <div class="section">
+            <div class="section-title">Output Format</div>
+            <div class="format-select">
+                <div class="format-option selected" data-format="surge">Surge</div>
+                <div class="format-option" data-format="clash">Clash</div>
+                <div class="format-option" data-format="quantumult">Quantumult X</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Proxy Settings</div>
+            <label>
+                <input type="checkbox" id="useChain">
+                Use Home IP Chain Mode
+            </label>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Custom Rules (Priority)</div>
+            <div class="input-group">
+                <span class="input-label">Enter custom rules, one per line</span>
+                <textarea id="customRules" placeholder="DOMAIN-SUFFIX,example.com,PROXY
+DOMAIN,test.com,DIRECT
+IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Rule Categories</div>
+            <label><input type="checkbox" id="rule-telegram" checked> Telegram</label>
+            <label><input type="checkbox" id="rule-youtube" checked> YouTube</label>
+            <label><input type="checkbox" id="rule-netflix" checked> Netflix</label>
+            <label><input type="checkbox" id="rule-disney" checked> Disney+</label>
+            <label><input type="checkbox" id="rule-tiktok" checked> TikTok</label>
+            <label><input type="checkbox" id="rule-chatgpt" checked> ChatGPT</label>
+            <label><input type="checkbox" id="rule-claude" checked> Claude</label>
+            <label><input type="checkbox" id="rule-gemini" checked> Gemini</label>
+            <label><input type="checkbox" id="rule-copilot" checked> Copilot</label>
+            <label><input type="checkbox" id="rule-microsoft" checked> Microsoft</label>
+            <label><input type="checkbox" id="rule-apple" checked> Apple</label>
+            <label><input type="checkbox" id="rule-steam" checked> Steam</label>
+            <label><input type="checkbox" id="rule-bilibili"> Bilibili</label>
+            <label><input type="checkbox" id="rule-netease"> NetEase Music</label>
+        </div>
+
+        <button id="generateBtn">Generate Subscription</button>
+
+        <div class="output" id="output">
+            <div class="output-label">Generated Link:</div>
+            <div class="output-content" id="outputContent"></div>
+            <button class="copy-btn" id="copyBtn">Copy to Clipboard</button>
+            <div class="status" id="status"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            gistApi: 'https://api.github.com/gists',
+            rulesBaseUrl: 'https://raw.githubusercontent.com/onlinefchen/opendoor/main/surge_rule',
+        };
+
+        // Format selection
+        document.querySelectorAll('.format-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.format-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+            });
+        });
+
+        // Get selected format
+        function getSelectedFormat() {
+            return document.querySelector('.format-option.selected').dataset.format;
+        }
+
+        // Get selected rules
+        function getSelectedRules() {
+            const rules = [];
+            const ruleMap = {
+                'telegram': 'telegram.list',
+                'youtube': 'youtube.list',
+                'netflix': 'netflix.list',
+                'disney': 'disney.list',
+                'tiktok': 'tiktok.list',
+                'chatgpt': 'chatgpt.list',
+                'claude': 'claude.list',
+                'gemini': 'gemini.list',
+                'copilot': 'copilot.list',
+                'microsoft': 'microsoft.list',
+                'apple': 'apple.list',
+                'steam': ['steam_web.list', 'steam_download.list'],
+                'bilibili': 'bilibili.list',
+                'netease': 'netease_music.list'
+            };
+
+            Object.keys(ruleMap).forEach(key => {
+                const checkbox = document.getElementById(`rule-${key}`);
+                if (checkbox && checkbox.checked) {
+                    const files = ruleMap[key];
+                    if (Array.isArray(files)) {
+                        rules.push(...files);
+                    } else {
+                        rules.push(files);
+                    }
+                }
+            });
+
+            return rules;
+        }
+
+        // Generate Surge configuration
+        async function generateSurgeConfig(useChain, customRules, selectedRules) {
+            let config = `#!MANAGED-CONFIG interval=86400
+
+[General]
+loglevel = notify
+dns-server = system, 114.114.114.114, 223.5.5.5
+skip-proxy = 127.0.0.1, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10, localhost, *.local
+ipv6 = true
+test-timeout = 3
+
+[Proxy]
+`;
+
+            // Add proxies from subscription
+            config += `# Proxies will be fetched from subscription
+`;
+
+            if (useChain) {
+                config += `
+# Home IP Chain Proxy
+HomeIP = http, 46.203.84.124, 2333, username=fchendev, password=imlink
+
+[Proxy Group]
+Proxy = select, policy-path=YOUR_SUBSCRIPTION_URL
+ChainProxy = select, HomeIP
+`;
+            } else {
+                config += `
+[Proxy Group]
+Proxy = select, policy-path=YOUR_SUBSCRIPTION_URL
+`;
+            }
+
+            config += `
+[Rule]
+`;
+
+            // Add custom rules first (priority)
+            if (customRules.trim()) {
+                config += `# Custom Rules (Priority)\n`;
+                customRules.trim().split('\n').forEach(rule => {
+                    if (rule.trim()) {
+                        config += rule.trim() + '\n';
+                    }
+                });
+                config += '\n';
+            }
+
+            // Add selected rule sets
+            for (const ruleFile of selectedRules) {
+                const ruleName = ruleFile.replace('.list', '');
+                config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},Proxy\n`;
+            }
+
+            // Add direct and final rules
+            config += `RULE-SET,${CONFIG.rulesBaseUrl}/direct.list,DIRECT
+GEOIP,CN,DIRECT
+FINAL,Proxy
+`;
+
+            return config;
+        }
+
+        // Generate Clash configuration
+        async function generateClashConfig(useChain, customRules, selectedRules) {
+            let config = `port: 7890
+socks-port: 7891
+allow-lan: true
+mode: Rule
+log-level: info
+external-controller: 127.0.0.1:9090
+
+proxy-providers:
+  subscription:
+    type: http
+    url: YOUR_SUBSCRIPTION_URL
+    interval: 86400
+    path: ./subscription.yaml
+    health-check:
+      enable: true
+      interval: 600
+      url: http://www.gstatic.com/generate_204
+
+proxy-groups:
+  - name: Proxy
+    type: select
+    use:
+      - subscription
+`;
+
+            if (useChain) {
+                config += `
+  - name: ChainProxy
+    type: relay
+    proxies:
+      - HomeIP
+      - Proxy
+
+proxies:
+  - name: HomeIP
+    type: http
+    server: 46.203.84.124
+    port: 2333
+    username: fchendev
+    password: imlink
+`;
+            }
+
+            config += `
+rule-providers:
+`;
+            for (const ruleFile of selectedRules) {
+                const ruleName = ruleFile.replace('.list', '');
+                config += `  ${ruleName}:
+    type: http
+    behavior: classical
+    url: ${CONFIG.rulesBaseUrl}/${ruleFile}
+    path: ./rules/${ruleFile}
+    interval: 86400
+`;
+            }
+
+            config += `
+rules:
+`;
+
+            // Add custom rules
+            if (customRules.trim()) {
+                customRules.trim().split('\n').forEach(rule => {
+                    if (rule.trim()) {
+                        config += `  - ${rule.trim()}\n`;
+                    }
+                });
+            }
+
+            // Add rule-set rules
+            for (const ruleFile of selectedRules) {
+                const ruleName = ruleFile.replace('.list', '');
+                config += `  - RULE-SET,${ruleName},Proxy\n`;
+            }
+
+            config += `  - GEOIP,CN,DIRECT
+  - MATCH,Proxy
+`;
+
+            return config;
+        }
+
+        // Generate Quantumult X configuration
+        async function generateQuantumultConfig(useChain, customRules, selectedRules) {
+            let config = `[general]
+server_check_url=http://cp.cloudflare.com/generate_204
+dns_exclusion_list=*.cmpassport.com, *.jegotrip.com.cn, *.icitymobile.mobi, id6.me
+
+[dns]
+server=114.114.114.114
+server=223.5.5.5
+
+[policy]
+static=Proxy, proxy, direct
+`;
+
+            if (useChain) {
+                config += `static=ChainProxy, HomeIP, Proxy
+
+[server_local]
+http=46.203.84.124:2333, username=fchendev, password=imlink, tag=HomeIP
+`;
+            }
+
+            config += `
+[server_remote]
+YOUR_SUBSCRIPTION_URL, tag=Subscription, update-interval=86400, opt-parser=true
+
+[filter_remote]
+`;
+
+            for (const ruleFile of selectedRules) {
+                config += `${CONFIG.rulesBaseUrl}/${ruleFile}, tag=${ruleFile.replace('.list', '')}, update-interval=86400, opt-parser=true, enabled=true\n`;
+            }
+
+            config += `
+[filter_local]
+`;
+
+            // Add custom rules
+            if (customRules.trim()) {
+                customRules.trim().split('\n').forEach(rule => {
+                    if (rule.trim()) {
+                        config += rule.trim() + '\n';
+                    }
+                });
+            }
+
+            config += `geoip, cn, direct
+final, Proxy
+`;
+
+            return config;
+        }
+
+        // Generate button click handler
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const format = getSelectedFormat();
+            const useChain = document.getElementById('useChain').checked;
+            const customRules = document.getElementById('customRules').value;
+            const selectedRules = getSelectedRules();
+
+            let config;
+            switch (format) {
+                case 'surge':
+                    config = await generateSurgeConfig(useChain, customRules, selectedRules);
+                    break;
+                case 'clash':
+                    config = await generateClashConfig(useChain, customRules, selectedRules);
+                    break;
+                case 'quantumult':
+                    config = await generateQuantumultConfig(useChain, customRules, selectedRules);
+                    break;
+            }
+
+            // Display the configuration
+            const output = document.getElementById('output');
+            const outputContent = document.getElementById('outputContent');
+            outputContent.textContent = config;
+            output.classList.add('show');
+
+            document.getElementById('status').textContent = 'Configuration generated. Replace YOUR_SUBSCRIPTION_URL with your actual subscription URL.';
+        });
+
+        // Copy button handler
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            const content = document.getElementById('outputContent').textContent;
+            navigator.clipboard.writeText(content).then(() => {
+                document.getElementById('status').textContent = 'Copied to clipboard!';
+            }).catch(err => {
+                document.getElementById('status').textContent = 'Failed to copy: ' + err;
+            });
+        });
+    </script>
+</body>
+</html>
