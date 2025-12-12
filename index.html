@@ -631,14 +631,14 @@ test-timeout = 3
 [Proxy]
 `;
 
-            // Add HomeIP if chain settings provided
+            // Add HomeIP proxy definition if chain settings provided
             if (useChain && chainSettings.server && chainSettings.port) {
                 let authPart = '';
                 if (chainSettings.username && chainSettings.password) {
                     authPart = `, username=${chainSettings.username}, password=${chainSettings.password}`;
                 }
-                config += `# Home IP Chain Proxy
-HomeIP = http, ${chainSettings.server}, ${chainSettings.port}${authPart}
+                config += `# HomeIP proxy - will use underlying-proxy to chain through a proxy node
+HomeIP = http, ${chainSettings.server}, ${chainSettings.port}${authPart}, underlying-proxy=ChainSelect
 `;
             }
 
@@ -649,11 +649,13 @@ Proxy = select, policy-path=${subscriptionUrl}
 `;
 
             // Add ChainProxy if chain settings provided
-            // Use url-test to auto-select best node, then chain through HomeIP
+            // Chain: You -> Proxy Node -> HomeIP -> Internet
             if (useChain && chainSettings.server && chainSettings.port) {
-                config += `# Chain proxy: HomeIP -> Proxy node -> Internet
-# Select a node here, traffic will go through HomeIP first
-ChainProxy = select, policy-path=${subscriptionUrl}, underlying-proxy=HomeIP
+                config += `# Select which proxy node to use as the first hop
+ChainSelect = select, policy-path=${subscriptionUrl}
+# ChainProxy uses HomeIP which chains through ChainSelect
+# Traffic flow: You -> ChainSelect(proxy node) -> HomeIP -> Internet
+ChainProxy = select, HomeIP
 `;
             }
 
