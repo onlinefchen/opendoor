@@ -61,10 +61,12 @@
             border-bottom: none;
         }
 
-        label.inline {
-            display: inline-flex;
-            border-bottom: none;
-            padding: 8px 0;
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            cursor: pointer;
+            font-size: 14px;
         }
 
         input[type="checkbox"] {
@@ -74,7 +76,7 @@
             accent-color: #0071e3;
         }
 
-        input[type="text"], input[type="number"], textarea {
+        input[type="text"], input[type="number"], input[type="password"], textarea {
             width: 100%;
             padding: 12px 16px;
             border: 1px solid #d2d2d7;
@@ -85,7 +87,7 @@
             transition: border-color 0.2s;
         }
 
-        input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
+        input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus, textarea:focus {
             outline: none;
             border-color: #0071e3;
         }
@@ -99,6 +101,10 @@
             margin-bottom: 16px;
         }
 
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+
         .input-label {
             font-size: 12px;
             color: #86868b;
@@ -110,14 +116,13 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
-            margin-bottom: 12px;
         }
 
         .chain-settings {
-            display: none;
             margin-top: 16px;
             padding-top: 16px;
             border-top: 1px solid #f0f0f0;
+            display: none;
         }
 
         .chain-settings.show {
@@ -193,7 +198,6 @@
         .format-select {
             display: flex;
             gap: 12px;
-            margin-bottom: 16px;
         }
 
         .format-option {
@@ -216,14 +220,24 @@
             background: #e8f4fd;
         }
 
-        .hidden {
-            display: none;
+        .error {
+            color: #ff3b30;
+            font-size: 12px;
+            margin-top: 4px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Subscription Converter</h1>
+
+        <div class="section">
+            <div class="section-title">Subscription URL</div>
+            <div class="input-group">
+                <span class="input-label">Enter your subscription link</span>
+                <input type="text" id="subscriptionUrl" placeholder="https://example.com/subscribe?token=xxx">
+            </div>
+        </div>
 
         <div class="section">
             <div class="section-title">Output Format</div>
@@ -235,13 +249,13 @@
         </div>
 
         <div class="section">
-            <div class="section-title">Proxy Settings</div>
-            <label class="inline">
+            <div class="section-title">Home IP Chain Mode</div>
+            <div class="checkbox-label">
                 <input type="checkbox" id="useChain">
-                Use Home IP Chain Mode
-            </label>
+                <span>Enable chain proxy through home IP</span>
+            </div>
             <div class="chain-settings" id="chainSettings">
-                <div class="input-row">
+                <div class="input-row" style="margin-bottom: 12px;">
                     <div class="input-group">
                         <span class="input-label">Server IP</span>
                         <input type="text" id="chainServer" placeholder="e.g. 192.168.1.1">
@@ -253,12 +267,12 @@
                 </div>
                 <div class="input-row">
                     <div class="input-group">
-                        <span class="input-label">Username</span>
-                        <input type="text" id="chainUsername" placeholder="Optional">
+                        <span class="input-label">Username (optional)</span>
+                        <input type="text" id="chainUsername" placeholder="username">
                     </div>
                     <div class="input-group">
-                        <span class="input-label">Password</span>
-                        <input type="text" id="chainPassword" placeholder="Optional">
+                        <span class="input-label">Password (optional)</span>
+                        <input type="password" id="chainPassword" placeholder="password">
                     </div>
                 </div>
             </div>
@@ -267,8 +281,8 @@
         <div class="section">
             <div class="section-title">Custom Rules (Priority)</div>
             <div class="input-group">
-                <span class="input-label">Enter custom rules, one per line</span>
-                <textarea id="customRules" placeholder="DOMAIN-SUFFIX,example.com,PROXY
+                <span class="input-label">Enter custom rules, one per line (these rules will be matched first)</span>
+                <textarea id="customRules" placeholder="DOMAIN-SUFFIX,example.com,Proxy
 DOMAIN,test.com,DIRECT
 IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
             </div>
@@ -292,7 +306,7 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
             <label><input type="checkbox" id="rule-netease"> NetEase Music</label>
         </div>
 
-        <button id="generateBtn">Generate Subscription</button>
+        <button id="generateBtn">Generate Configuration</button>
 
         <div class="output" id="output">
             <div class="output-label">Generated Configuration:</div>
@@ -309,8 +323,13 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         };
 
         // Toggle chain settings visibility
-        document.getElementById('useChain').addEventListener('change', (e) => {
-            document.getElementById('chainSettings').classList.toggle('show', e.target.checked);
+        document.getElementById('useChain').addEventListener('change', function() {
+            const chainSettings = document.getElementById('chainSettings');
+            if (this.checked) {
+                chainSettings.classList.add('show');
+            } else {
+                chainSettings.classList.remove('show');
+            }
         });
 
         // Format selection
@@ -324,6 +343,11 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         // Get selected format
         function getSelectedFormat() {
             return document.querySelector('.format-option.selected').dataset.format;
+        }
+
+        // Get subscription URL
+        function getSubscriptionUrl() {
+            return document.getElementById('subscriptionUrl').value.trim();
         }
 
         // Get chain proxy settings
@@ -372,7 +396,7 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         }
 
         // Generate Surge configuration
-        function generateSurgeConfig(useChain, chainSettings, customRules, selectedRules) {
+        function generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
             let config = `#!MANAGED-CONFIG interval=86400
 
 [General]
@@ -383,7 +407,6 @@ ipv6 = true
 test-timeout = 3
 
 [Proxy]
-# Proxies will be fetched from subscription
 `;
 
             if (useChain && chainSettings.server && chainSettings.port) {
@@ -391,18 +414,17 @@ test-timeout = 3
                 if (chainSettings.username && chainSettings.password) {
                     authPart = `, username=${chainSettings.username}, password=${chainSettings.password}`;
                 }
-                config += `
-# Home IP Chain Proxy
+                config += `# Home IP Chain Proxy
 HomeIP = http, ${chainSettings.server}, ${chainSettings.port}${authPart}
 
 [Proxy Group]
-Proxy = select, policy-path=YOUR_SUBSCRIPTION_URL
+Proxy = select, policy-path=${subscriptionUrl}
 ChainProxy = select, HomeIP
 `;
             } else {
                 config += `
 [Proxy Group]
-Proxy = select, policy-path=YOUR_SUBSCRIPTION_URL
+Proxy = select, policy-path=${subscriptionUrl}
 `;
             }
 
@@ -436,7 +458,7 @@ FINAL,Proxy
         }
 
         // Generate Clash configuration
-        function generateClashConfig(useChain, chainSettings, customRules, selectedRules) {
+        function generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
             let config = `port: 7890
 socks-port: 7891
 allow-lan: true
@@ -447,7 +469,7 @@ external-controller: 127.0.0.1:9090
 proxy-providers:
   subscription:
     type: http
-    url: YOUR_SUBSCRIPTION_URL
+    url: ${subscriptionUrl}
     interval: 86400
     path: ./subscription.yaml
     health-check:
@@ -524,7 +546,7 @@ rules:
         }
 
         // Generate Quantumult X configuration
-        function generateQuantumultConfig(useChain, chainSettings, customRules, selectedRules) {
+        function generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
             let config = `[general]
 server_check_url=http://cp.cloudflare.com/generate_204
 dns_exclusion_list=*.cmpassport.com, *.jegotrip.com.cn, *.icitymobile.mobi, id6.me
@@ -553,7 +575,7 @@ static=Proxy, proxy, direct
 
             config += `
 [server_remote]
-YOUR_SUBSCRIPTION_URL, tag=Subscription, update-interval=86400, opt-parser=true
+${subscriptionUrl}, tag=Subscription, update-interval=86400, opt-parser=true
 
 [filter_remote]
 `;
@@ -584,22 +606,35 @@ final, Proxy
 
         // Generate button click handler
         document.getElementById('generateBtn').addEventListener('click', () => {
+            const subscriptionUrl = getSubscriptionUrl();
             const format = getSelectedFormat();
             const useChain = document.getElementById('useChain').checked;
             const chainSettings = getChainSettings();
             const customRules = document.getElementById('customRules').value;
             const selectedRules = getSelectedRules();
 
+            // Validate subscription URL
+            if (!subscriptionUrl) {
+                alert('Please enter your subscription URL');
+                return;
+            }
+
+            // Validate chain settings if enabled
+            if (useChain && (!chainSettings.server || !chainSettings.port)) {
+                alert('Please enter server IP and port for chain proxy');
+                return;
+            }
+
             let config;
             switch (format) {
                 case 'surge':
-                    config = generateSurgeConfig(useChain, chainSettings, customRules, selectedRules);
+                    config = generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules);
                     break;
                 case 'clash':
-                    config = generateClashConfig(useChain, chainSettings, customRules, selectedRules);
+                    config = generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules);
                     break;
                 case 'quantumult':
-                    config = generateQuantumultConfig(useChain, chainSettings, customRules, selectedRules);
+                    config = generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules);
                     break;
             }
 
@@ -609,7 +644,7 @@ final, Proxy
             outputContent.textContent = config;
             output.classList.add('show');
 
-            document.getElementById('status').textContent = 'Configuration generated. Replace YOUR_SUBSCRIPTION_URL with your actual subscription URL.';
+            document.getElementById('status').textContent = 'Configuration generated successfully!';
         });
 
         // Copy button handler
