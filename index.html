@@ -125,64 +125,9 @@
         }
 
         .rules-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .rule-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 12px;
-            background: #f9f9f9;
-            border-radius: 6px;
-        }
-
-        .rule-name {
-            font-size: 14px;
-            min-width: 150px;
-        }
-
-        .rule-policy {
-            display: flex;
-            gap: 4px;
-        }
-
-        .policy-btn {
-            padding: 4px 10px;
-            border: 1px solid #d2d2d7;
-            border-radius: 4px;
-            background: #fff;
-            font-size: 11px;
-            cursor: pointer;
-            width: auto;
-            color: #1d1d1f;
-        }
-
-        .policy-btn:hover {
-            border-color: #0071e3;
-        }
-
-        .policy-btn.selected {
-            background: #0071e3;
-            color: #fff;
-            border-color: #0071e3;
-        }
-
-        .policy-btn.selected-direct {
-            background: #34c759;
-            border-color: #34c759;
-        }
-
-        .policy-btn.selected-reject {
-            background: #ff3b30;
-            border-color: #ff3b30;
-        }
-
-        .policy-btn.selected-chain {
-            background: #ff9500;
-            border-color: #ff9500;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 4px 16px;
         }
 
         button {
@@ -411,8 +356,8 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         <div class="section">
             <div class="section-title">Rule Categories</div>
             <div class="select-all-row">
-                <button class="select-all-btn" id="selectAllBtn">All Proxy</button>
-                <button class="select-all-btn" id="deselectAllBtn">All Off</button>
+                <button class="select-all-btn" id="selectAllBtn">Select All</button>
+                <button class="select-all-btn" id="deselectAllBtn">Deselect All</button>
                 <button class="select-all-btn" id="resetDefaultBtn">Reset Default</button>
             </div>
             <div id="rulesContainer">
@@ -480,14 +425,7 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
             }
         }
 
-        // Get default policy for a rule
-        function getDefaultPolicy(ruleName) {
-            if (ruleName === 'reject') return 'REJECT';
-            if (ruleName === 'direct') return 'DIRECT';
-            return 'Proxy'; // Default to Proxy for most rules
-        }
-
-        // Render rules with policy selection
+        // Render rules as checkbox list
         function renderRules() {
             const container = document.getElementById('rulesContainer');
             container.innerHTML = '';
@@ -497,89 +435,36 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
 
             rulesData.rules.forEach(rule => {
                 const ruleId = rule.file.replace('.list', '');
-                const defaultPolicy = getDefaultPolicy(ruleId);
-
-                const ruleRow = document.createElement('div');
-                ruleRow.className = 'rule-row';
-                ruleRow.innerHTML = `
-                    <span class="rule-name">${rule.name}</span>
-                    <div class="rule-policy" data-rule="${rule.file}">
-                        <button type="button" class="policy-btn ${defaultPolicy === 'Proxy' ? 'selected' : ''}" data-policy="Proxy">Proxy</button>
-                        <button type="button" class="policy-btn ${defaultPolicy === 'DIRECT' ? 'selected selected-direct' : ''}" data-policy="DIRECT">Direct</button>
-                        <button type="button" class="policy-btn" data-policy="Chain">Chain</button>
-                        <button type="button" class="policy-btn ${defaultPolicy === 'REJECT' ? 'selected selected-reject' : ''}" data-policy="REJECT">Reject</button>
-                        <button type="button" class="policy-btn" data-policy="OFF">Off</button>
-                    </div>
+                const label = document.createElement('label');
+                label.innerHTML = `
+                    <input type="checkbox" id="rule-${ruleId}" data-file="${rule.file}" ${rule.default ? 'checked' : ''}>
+                    ${rule.name}
                 `;
-                rulesGrid.appendChild(ruleRow);
+                rulesGrid.appendChild(label);
             });
 
             container.appendChild(rulesGrid);
+        }
 
-            // Add click handlers for policy buttons
-            container.querySelectorAll('.rule-policy').forEach(policyGroup => {
-                policyGroup.querySelectorAll('.policy-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        // Remove selected from all buttons in this group
-                        policyGroup.querySelectorAll('.policy-btn').forEach(b => {
-                            b.classList.remove('selected', 'selected-direct', 'selected-reject', 'selected-chain');
-                        });
-                        // Add selected to clicked button
-                        btn.classList.add('selected');
-                        const policy = btn.dataset.policy;
-                        if (policy === 'DIRECT') btn.classList.add('selected-direct');
-                        if (policy === 'REJECT') btn.classList.add('selected-reject');
-                        if (policy === 'Chain') btn.classList.add('selected-chain');
-
-                        // Save to localStorage
-                        saveRulePolicies();
-                    });
-                });
+        // Get selected rules
+        function getSelectedRules() {
+            const rules = [];
+            document.querySelectorAll('#rulesContainer input[type="checkbox"]:checked').forEach(cb => {
+                rules.push(cb.dataset.file);
             });
+            return rules;
         }
 
-        // Get rule policies
-        function getRulePolicies() {
-            const policies = {};
-            document.querySelectorAll('.rule-policy').forEach(policyGroup => {
-                const ruleFile = policyGroup.dataset.rule;
-                const selectedBtn = policyGroup.querySelector('.policy-btn.selected');
-                if (selectedBtn) {
-                    policies[ruleFile] = selectedBtn.dataset.policy;
-                }
-            });
-            return policies;
-        }
-
-        // Save rule policies to localStorage
-        function saveRulePolicies() {
-            saveToStorage(STORAGE_KEYS.selectedRules, getRulePolicies());
-        }
-
-        // Set all rules to a specific policy
-        function setAllRulesPolicy(policy) {
-            document.querySelectorAll('.rule-policy').forEach(policyGroup => {
-                policyGroup.querySelectorAll('.policy-btn').forEach(btn => {
-                    btn.classList.remove('selected', 'selected-direct', 'selected-reject', 'selected-chain');
-                    if (btn.dataset.policy === policy) {
-                        btn.classList.add('selected');
-                        if (policy === 'DIRECT') btn.classList.add('selected-direct');
-                        if (policy === 'REJECT') btn.classList.add('selected-reject');
-                        if (policy === 'Chain') btn.classList.add('selected-chain');
-                    }
-                });
-            });
-            saveRulePolicies();
-        }
-
-        // Select all rules -> Proxy
+        // Select all rules
         document.getElementById('selectAllBtn').addEventListener('click', () => {
-            setAllRulesPolicy('Proxy');
+            document.querySelectorAll('#rulesContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+            saveToStorage(STORAGE_KEYS.selectedRules, getSelectedRules());
         });
 
-        // Deselect all rules -> Off
+        // Deselect all rules
         document.getElementById('deselectAllBtn').addEventListener('click', () => {
-            setAllRulesPolicy('OFF');
+            document.querySelectorAll('#rulesContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
+            saveToStorage(STORAGE_KEYS.selectedRules, getSelectedRules());
         });
 
         // Reset to default
@@ -587,20 +472,12 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
             if (!rulesData) return;
             rulesData.rules.forEach(rule => {
                 const ruleId = rule.file.replace('.list', '');
-                const defaultPolicy = getDefaultPolicy(ruleId);
-                const policyGroup = document.querySelector(`.rule-policy[data-rule="${rule.file}"]`);
-                if (policyGroup) {
-                    policyGroup.querySelectorAll('.policy-btn').forEach(btn => {
-                        btn.classList.remove('selected', 'selected-direct', 'selected-reject', 'selected-chain');
-                        if (btn.dataset.policy === defaultPolicy) {
-                            btn.classList.add('selected');
-                            if (defaultPolicy === 'DIRECT') btn.classList.add('selected-direct');
-                            if (defaultPolicy === 'REJECT') btn.classList.add('selected-reject');
-                        }
-                    });
+                const checkbox = document.getElementById(`rule-${ruleId}`);
+                if (checkbox) {
+                    checkbox.checked = rule.default;
                 }
             });
-            saveRulePolicies();
+            saveToStorage(STORAGE_KEYS.selectedRules, getSelectedRules());
         });
 
         // Toggle chain settings visibility
@@ -701,8 +578,47 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
             }
         }
 
+        // Rule name to emoji mapping
+        const RULE_ICONS = {
+            'apple': '🍎',
+            'bahamut': '📺',
+            'bilibili': '📺',
+            'chatgpt': '🤖',
+            'claude': '🤖',
+            'cloudflare': '☁️',
+            'copilot': '🤖',
+            'direct': '🎯',
+            'disney': '🎬',
+            'final': '🏁',
+            'game': '🎮',
+            'gemini': '🤖',
+            'google_fcm': '📱',
+            'microsoft': '🪟',
+            'microsoft_onedrive': '☁️',
+            'netease_music': '🎵',
+            'netflix': '🎬',
+            'proxy': '🌐',
+            'reject': '🚫',
+            'steam_download': '🎮',
+            'steam_web': '🎮',
+            'telegram': '📱',
+            'tiktok': '📺',
+            'youtube': '📺'
+        };
+
+        // Get icon for rule
+        function getRuleIcon(ruleName) {
+            return RULE_ICONS[ruleName] || '📋';
+        }
+
+        // Format rule name for display
+        function formatRuleName(ruleFile) {
+            const name = ruleFile.replace('.list', '');
+            return name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        }
+
         // Generate Surge configuration
-        function generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, rulePolicies) {
+        function generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
             let config = `#!MANAGED-CONFIG interval=86400
 
 [General]
@@ -715,26 +631,49 @@ test-timeout = 3
 [Proxy]
 `;
 
-            // Check if any rule uses Chain policy
-            const hasChainRule = Object.values(rulePolicies).includes('Chain');
-
-            if ((useChain || hasChainRule) && chainSettings.server && chainSettings.port) {
+            // Add HomeIP if chain settings provided
+            if (useChain && chainSettings.server && chainSettings.port) {
                 let authPart = '';
                 if (chainSettings.username && chainSettings.password) {
                     authPart = `, username=${chainSettings.username}, password=${chainSettings.password}`;
                 }
                 config += `# Home IP Chain Proxy
 HomeIP = http, ${chainSettings.server}, ${chainSettings.port}${authPart}
+`;
+            }
 
+            config += `
 [Proxy Group]
-Proxy = select, policy-path=${subscriptionUrl}
-ChainProxy = select, HomeIP
-`;
-            } else {
-                config += `
-[Proxy Group]
+# Main proxy group
 Proxy = select, policy-path=${subscriptionUrl}
 `;
+
+            // Add ChainProxy if chain settings provided
+            if (useChain && chainSettings.server && chainSettings.port) {
+                config += `ChainProxy = select, HomeIP, policy-path=${subscriptionUrl}
+`;
+            }
+
+            config += `
+# Per-category policy groups (select node per category in Surge)
+`;
+
+            // Create a policy group for each selected rule (except reject and direct)
+            for (const ruleFile of selectedRules) {
+                const ruleName = ruleFile.replace('.list', '');
+                if (ruleName === 'reject' || ruleName === 'direct') continue;
+
+                const icon = getRuleIcon(ruleName);
+                const displayName = formatRuleName(ruleFile);
+                const groupName = `${icon} ${displayName}`;
+
+                if (useChain && chainSettings.server && chainSettings.port) {
+                    config += `${groupName} = select, Proxy, ChainProxy, DIRECT, REJECT, policy-path=${subscriptionUrl}
+`;
+                } else {
+                    config += `${groupName} = select, Proxy, DIRECT, REJECT, policy-path=${subscriptionUrl}
+`;
+                }
             }
 
             config += `
@@ -752,14 +691,20 @@ Proxy = select, policy-path=${subscriptionUrl}
                 config += '\n';
             }
 
-            // Add rules based on their policy
-            for (const [ruleFile, policy] of Object.entries(rulePolicies)) {
-                if (policy === 'OFF') continue; // Skip disabled rules
+            // Add rules pointing to their respective policy groups
+            for (const ruleFile of selectedRules) {
+                const ruleName = ruleFile.replace('.list', '');
 
-                let surgePolicy = policy;
-                if (policy === 'Chain') surgePolicy = 'ChainProxy';
-
-                config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},${surgePolicy}\n`;
+                if (ruleName === 'reject') {
+                    config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},REJECT\n`;
+                } else if (ruleName === 'direct') {
+                    config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},DIRECT\n`;
+                } else {
+                    const icon = getRuleIcon(ruleName);
+                    const displayName = formatRuleName(ruleFile);
+                    const groupName = `${icon} ${displayName}`;
+                    config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},${groupName}\n`;
+                }
             }
 
             config += `GEOIP,CN,DIRECT
@@ -770,10 +715,7 @@ FINAL,Proxy
         }
 
         // Generate Clash configuration
-        function generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, rulePolicies) {
-            // Check if any rule uses Chain policy
-            const hasChainRule = Object.values(rulePolicies).includes('Chain');
-
+        function generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
             let config = `port: 7890
 socks-port: 7891
 allow-lan: true
@@ -799,7 +741,8 @@ proxy-groups:
       - subscription
 `;
 
-            if ((useChain || hasChainRule) && chainSettings.server && chainSettings.port) {
+            // Add ChainProxy if chain settings provided
+            if (useChain && chainSettings.server && chainSettings.port) {
                 config += `
   - name: ChainProxy
     type: relay
@@ -821,11 +764,39 @@ proxies:
             }
 
             config += `
+# Per-category policy groups
+`;
+
+            // Create a policy group for each selected rule (except reject and direct)
+            for (const ruleFile of selectedRules) {
+                const ruleName = ruleFile.replace('.list', '');
+                if (ruleName === 'reject' || ruleName === 'direct') continue;
+
+                const icon = getRuleIcon(ruleName);
+                const displayName = formatRuleName(ruleFile);
+                const groupName = `${icon} ${displayName}`;
+
+                config += `  - name: "${groupName}"
+    type: select
+    proxies:
+      - Proxy
+`;
+                if (useChain && chainSettings.server && chainSettings.port) {
+                    config += `      - ChainProxy
+`;
+                }
+                config += `      - DIRECT
+      - REJECT
+    use:
+      - subscription
+`;
+            }
+
+            config += `
 rule-providers:
 `;
-            // Only add rule providers for enabled rules
-            for (const [ruleFile, policy] of Object.entries(rulePolicies)) {
-                if (policy === 'OFF') continue;
+            // Add rule providers for selected rules
+            for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
                 config += `  ${ruleName}:
     type: http
@@ -849,15 +820,20 @@ rules:
                 });
             }
 
-            // Add rule-set rules based on their policy
-            for (const [ruleFile, policy] of Object.entries(rulePolicies)) {
-                if (policy === 'OFF') continue;
-
+            // Add rules pointing to their respective policy groups
+            for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
-                let clashPolicy = policy;
-                if (policy === 'Chain') clashPolicy = 'ChainProxy';
 
-                config += `  - RULE-SET,${ruleName},${clashPolicy}\n`;
+                if (ruleName === 'reject') {
+                    config += `  - RULE-SET,${ruleName},REJECT\n`;
+                } else if (ruleName === 'direct') {
+                    config += `  - RULE-SET,${ruleName},DIRECT\n`;
+                } else {
+                    const icon = getRuleIcon(ruleName);
+                    const displayName = formatRuleName(ruleFile);
+                    const groupName = `${icon} ${displayName}`;
+                    config += `  - RULE-SET,${ruleName},"${groupName}"\n`;
+                }
             }
 
             config += `  - GEOIP,CN,DIRECT
@@ -868,10 +844,7 @@ rules:
         }
 
         // Generate Quantumult X configuration
-        function generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, rulePolicies) {
-            // Check if any rule uses Chain policy
-            const hasChainRule = Object.values(rulePolicies).includes('Chain');
-
+        function generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
             let config = `[general]
 server_check_url=http://cp.cloudflare.com/generate_204
 dns_exclusion_list=*.cmpassport.com, *.jegotrip.com.cn, *.icitymobile.mobi, id6.me
@@ -884,9 +857,32 @@ server=223.5.5.5
 static=Proxy, proxy, direct
 `;
 
-            if ((useChain || hasChainRule) && chainSettings.server && chainSettings.port) {
+            // Add ChainProxy if chain settings provided
+            if (useChain && chainSettings.server && chainSettings.port) {
                 config += `static=ChainProxy, HomeIP, Proxy
+`;
+            }
 
+            // Add per-category policy groups
+            for (const ruleFile of selectedRules) {
+                const ruleName = ruleFile.replace('.list', '');
+                if (ruleName === 'reject' || ruleName === 'direct') continue;
+
+                const icon = getRuleIcon(ruleName);
+                const displayName = formatRuleName(ruleFile);
+                const groupName = `${icon} ${displayName}`;
+
+                if (useChain && chainSettings.server && chainSettings.port) {
+                    config += `static=${groupName}, Proxy, ChainProxy, direct, reject
+`;
+                } else {
+                    config += `static=${groupName}, Proxy, direct, reject
+`;
+                }
+            }
+
+            if (useChain && chainSettings.server && chainSettings.port) {
+                config += `
 [server_local]
 `;
                 if (chainSettings.username && chainSettings.password) {
@@ -905,15 +901,20 @@ ${subscriptionUrl}, tag=Subscription, update-interval=86400, opt-parser=true
 [filter_remote]
 `;
 
-            // Add rules based on their policy
-            for (const [ruleFile, policy] of Object.entries(rulePolicies)) {
-                if (policy === 'OFF') continue;
+            // Add rules pointing to their respective policy groups
+            for (const ruleFile of selectedRules) {
+                const ruleName = ruleFile.replace('.list', '');
 
-                let qxPolicy = policy.toLowerCase();
-                if (policy === 'Chain') qxPolicy = 'ChainProxy';
-                if (policy === 'Proxy') qxPolicy = 'Proxy';
-
-                config += `${CONFIG.rulesBaseUrl}/${ruleFile}, tag=${ruleFile.replace('.list', '')}, force-policy=${qxPolicy}, update-interval=86400, opt-parser=true, enabled=true\n`;
+                if (ruleName === 'reject') {
+                    config += `${CONFIG.rulesBaseUrl}/${ruleFile}, tag=reject, force-policy=reject, update-interval=86400, opt-parser=true, enabled=true\n`;
+                } else if (ruleName === 'direct') {
+                    config += `${CONFIG.rulesBaseUrl}/${ruleFile}, tag=direct, force-policy=direct, update-interval=86400, opt-parser=true, enabled=true\n`;
+                } else {
+                    const icon = getRuleIcon(ruleName);
+                    const displayName = formatRuleName(ruleFile);
+                    const groupName = `${icon} ${displayName}`;
+                    config += `${CONFIG.rulesBaseUrl}/${ruleFile}, tag=${ruleName}, force-policy=${groupName}, update-interval=86400, opt-parser=true, enabled=true\n`;
+                }
             }
 
             config += `
@@ -943,7 +944,7 @@ final, Proxy
             const useChain = document.getElementById('useChain').checked;
             const chainSettings = getChainSettings();
             const customRules = document.getElementById('customRules').value;
-            const rulePolicies = getRulePolicies();
+            const selectedRules = getSelectedRules();
 
             // Validate subscription URL
             if (!subscriptionUrl) {
@@ -951,25 +952,22 @@ final, Proxy
                 return;
             }
 
-            // Check if any rule uses Chain policy
-            const hasChainRule = Object.values(rulePolicies).includes('Chain');
-
-            // Validate chain settings if chain is needed
-            if ((useChain || hasChainRule) && (!chainSettings.server || !chainSettings.port)) {
-                alert('Please enter server IP and port for chain proxy (some rules use Chain policy)');
+            // Validate chain settings if chain is enabled
+            if (useChain && (!chainSettings.server || !chainSettings.port)) {
+                alert('Please enter server IP and port for chain proxy');
                 return;
             }
 
             let config;
             switch (format) {
                 case 'surge':
-                    config = generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, rulePolicies);
+                    config = generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules);
                     break;
                 case 'clash':
-                    config = generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, rulePolicies);
+                    config = generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules);
                     break;
                 case 'quantumult':
-                    config = generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, rulePolicies);
+                    config = generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules);
                     break;
             }
 
@@ -1074,25 +1072,14 @@ final, Proxy
             });
         }
 
-        // Restore rule policy selections after rules are loaded
+        // Restore rule checkbox selections after rules are loaded
         function restoreRuleSelections() {
-            const savedPolicies = loadFromStorage(STORAGE_KEYS.selectedRules, null);
-            if (savedPolicies && typeof savedPolicies === 'object' && !Array.isArray(savedPolicies)) {
-                // New format: object with policies
-                for (const [ruleFile, policy] of Object.entries(savedPolicies)) {
-                    const policyGroup = document.querySelector(`.rule-policy[data-rule="${ruleFile}"]`);
-                    if (policyGroup) {
-                        policyGroup.querySelectorAll('.policy-btn').forEach(btn => {
-                            btn.classList.remove('selected', 'selected-direct', 'selected-reject', 'selected-chain');
-                            if (btn.dataset.policy === policy) {
-                                btn.classList.add('selected');
-                                if (policy === 'DIRECT') btn.classList.add('selected-direct');
-                                if (policy === 'REJECT') btn.classList.add('selected-reject');
-                                if (policy === 'Chain') btn.classList.add('selected-chain');
-                            }
-                        });
-                    }
-                }
+            const savedRules = loadFromStorage(STORAGE_KEYS.selectedRules, null);
+            if (savedRules && Array.isArray(savedRules)) {
+                // Array format: list of selected rule files
+                document.querySelectorAll('#rulesContainer input[type="checkbox"]').forEach(cb => {
+                    cb.checked = savedRules.includes(cb.dataset.file);
+                });
             }
         }
 
