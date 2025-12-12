@@ -633,15 +633,20 @@ HomeIP = http, ${chainSettings.server}, ${chainSettings.port}${chainAuthPart}, u
             }
 
             // Build proxy group section
-            let proxyGroupSection = `# Main proxy group - select a node from subscription
-Proxy = select, policy-path=${subscriptionUrl}
-`;
+            let proxyGroupSection = '';
 
             if (useChain && chainSettings.server && chainSettings.port) {
-                proxyGroupSection += `# Select which proxy node to use as the first hop for chain
+                // When chain mode enabled, Proxy can also select ChainProxy
+                proxyGroupSection += `# Main proxy group - can select direct nodes or ChainProxy
+Proxy = select, ChainProxy, policy-path=${subscriptionUrl}
+# Select which proxy node to use as the first hop for chain
 ChainSelect = select, policy-path=${subscriptionUrl}
-# ChainProxy selects HomeIP
+# ChainProxy uses HomeIP with ChainSelect as underlying proxy
 ChainProxy = select, HomeIP
+`;
+            } else {
+                proxyGroupSection += `# Main proxy group - select a node from subscription
+Proxy = select, policy-path=${subscriptionUrl}
 `;
             }
 
