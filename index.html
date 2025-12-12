@@ -48,19 +48,6 @@
             color: #86868b;
         }
 
-        .category-title {
-            font-size: 12px;
-            font-weight: 600;
-            margin: 16px 0 8px 0;
-            color: #1d1d1f;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .category-title:first-child {
-            margin-top: 0;
-        }
-
         label {
             display: flex;
             align-items: center;
@@ -375,46 +362,25 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
             }
         }
 
-        // Render rules by category
+        // Render rules as simple list
         function renderRules() {
             const container = document.getElementById('rulesContainer');
             container.innerHTML = '';
 
-            const rulesByCategory = {};
+            const rulesGrid = document.createElement('div');
+            rulesGrid.className = 'rules-grid';
+
             rulesData.rules.forEach(rule => {
-                if (!rulesByCategory[rule.category]) {
-                    rulesByCategory[rule.category] = [];
-                }
-                rulesByCategory[rule.category].push(rule);
+                const ruleId = rule.file.replace('.list', '');
+                const label = document.createElement('label');
+                label.innerHTML = `
+                    <input type="checkbox" id="rule-${ruleId}" data-file="${rule.file}" ${rule.default ? 'checked' : ''}>
+                    ${rule.name}
+                `;
+                rulesGrid.appendChild(label);
             });
 
-            const categoryOrder = ['ai', 'media', 'social', 'service', 'game', 'other'];
-
-            categoryOrder.forEach(categoryId => {
-                if (!rulesByCategory[categoryId]) return;
-
-                const categoryName = rulesData.categories[categoryId] || categoryId;
-                const rules = rulesByCategory[categoryId];
-
-                const categoryTitle = document.createElement('div');
-                categoryTitle.className = 'category-title';
-                categoryTitle.textContent = categoryName;
-                container.appendChild(categoryTitle);
-
-                const rulesGrid = document.createElement('div');
-                rulesGrid.className = 'rules-grid';
-
-                rules.forEach(rule => {
-                    const label = document.createElement('label');
-                    label.innerHTML = `
-                        <input type="checkbox" id="rule-${rule.id}" data-file="${rule.file}" ${rule.default ? 'checked' : ''}>
-                        ${rule.name}
-                    `;
-                    rulesGrid.appendChild(label);
-                });
-
-                container.appendChild(rulesGrid);
-            });
+            container.appendChild(rulesGrid);
         }
 
         // Select all rules
@@ -431,7 +397,8 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         document.getElementById('resetDefaultBtn').addEventListener('click', () => {
             if (!rulesData) return;
             rulesData.rules.forEach(rule => {
-                const checkbox = document.getElementById(`rule-${rule.id}`);
+                const ruleId = rule.file.replace('.list', '');
+                const checkbox = document.getElementById(`rule-${ruleId}`);
                 if (checkbox) {
                     checkbox.checked = rule.default;
                 }
