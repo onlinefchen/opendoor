@@ -644,13 +644,16 @@ HomeIP = http, ${chainSettings.server}, ${chainSettings.port}${authPart}
 
             config += `
 [Proxy Group]
-# Main proxy group
+# Main proxy group - select a node from subscription
 Proxy = select, policy-path=${subscriptionUrl}
 `;
 
             // Add ChainProxy if chain settings provided
+            // Use url-test to auto-select best node, then chain through HomeIP
             if (useChain && chainSettings.server && chainSettings.port) {
-                config += `ChainProxy = select, HomeIP, policy-path=${subscriptionUrl}
+                config += `# Chain proxy: HomeIP -> Proxy node -> Internet
+# Select a node here, traffic will go through HomeIP first
+ChainProxy = select, policy-path=${subscriptionUrl}, underlying-proxy=HomeIP
 `;
             }
 
