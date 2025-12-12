@@ -61,6 +61,12 @@
             border-bottom: none;
         }
 
+        label.inline {
+            display: inline-flex;
+            border-bottom: none;
+            padding: 8px 0;
+        }
+
         input[type="checkbox"] {
             width: 20px;
             height: 20px;
@@ -68,7 +74,7 @@
             accent-color: #0071e3;
         }
 
-        input[type="text"], textarea {
+        input[type="text"], input[type="number"], textarea {
             width: 100%;
             padding: 12px 16px;
             border: 1px solid #d2d2d7;
@@ -79,7 +85,7 @@
             transition: border-color 0.2s;
         }
 
-        input[type="text"]:focus, textarea:focus {
+        input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
             outline: none;
             border-color: #0071e3;
         }
@@ -97,6 +103,24 @@
             font-size: 12px;
             color: #86868b;
             margin-bottom: 8px;
+            display: block;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .chain-settings {
+            display: none;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .chain-settings.show {
             display: block;
         }
 
@@ -130,6 +154,8 @@
             font-size: 13px;
             word-break: break-all;
             display: none;
+            max-height: 400px;
+            overflow-y: auto;
         }
 
         .output.show {
@@ -144,6 +170,7 @@
 
         .output-content {
             user-select: all;
+            white-space: pre-wrap;
         }
 
         .copy-btn {
@@ -209,10 +236,32 @@
 
         <div class="section">
             <div class="section-title">Proxy Settings</div>
-            <label>
+            <label class="inline">
                 <input type="checkbox" id="useChain">
                 Use Home IP Chain Mode
             </label>
+            <div class="chain-settings" id="chainSettings">
+                <div class="input-row">
+                    <div class="input-group">
+                        <span class="input-label">Server IP</span>
+                        <input type="text" id="chainServer" placeholder="e.g. 192.168.1.1">
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">HTTP Port</span>
+                        <input type="number" id="chainPort" placeholder="e.g. 8080">
+                    </div>
+                </div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <span class="input-label">Username</span>
+                        <input type="text" id="chainUsername" placeholder="Optional">
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Password</span>
+                        <input type="text" id="chainPassword" placeholder="Optional">
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="section">
@@ -246,7 +295,7 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         <button id="generateBtn">Generate Subscription</button>
 
         <div class="output" id="output">
-            <div class="output-label">Generated Link:</div>
+            <div class="output-label">Generated Configuration:</div>
             <div class="output-content" id="outputContent"></div>
             <button class="copy-btn" id="copyBtn">Copy to Clipboard</button>
             <div class="status" id="status"></div>
@@ -256,9 +305,13 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
     <script>
         // Configuration
         const CONFIG = {
-            gistApi: 'https://api.github.com/gists',
             rulesBaseUrl: 'https://raw.githubusercontent.com/onlinefchen/opendoor/main/surge_rule',
         };
+
+        // Toggle chain settings visibility
+        document.getElementById('useChain').addEventListener('change', (e) => {
+            document.getElementById('chainSettings').classList.toggle('show', e.target.checked);
+        });
 
         // Format selection
         document.querySelectorAll('.format-option').forEach(option => {
@@ -271,6 +324,16 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         // Get selected format
         function getSelectedFormat() {
             return document.querySelector('.format-option.selected').dataset.format;
+        }
+
+        // Get chain proxy settings
+        function getChainSettings() {
+            return {
+                server: document.getElementById('chainServer').value.trim(),
+                port: document.getElementById('chainPort').value.trim(),
+                username: document.getElementById('chainUsername').value.trim(),
+                password: document.getElementById('chainPassword').value.trim()
+            };
         }
 
         // Get selected rules
@@ -309,7 +372,7 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         }
 
         // Generate Surge configuration
-        async function generateSurgeConfig(useChain, customRules, selectedRules) {
+        function generateSurgeConfig(useChain, chainSettings, customRules, selectedRules) {
             let config = `#!MANAGED-CONFIG interval=86400
 
 [General]
@@ -320,16 +383,17 @@ ipv6 = true
 test-timeout = 3
 
 [Proxy]
+# Proxies will be fetched from subscription
 `;
 
-            // Add proxies from subscription
-            config += `# Proxies will be fetched from subscription
-`;
-
-            if (useChain) {
+            if (useChain && chainSettings.server && chainSettings.port) {
+                let authPart = '';
+                if (chainSettings.username && chainSettings.password) {
+                    authPart = `, username=${chainSettings.username}, password=${chainSettings.password}`;
+                }
                 config += `
 # Home IP Chain Proxy
-HomeIP = http, 46.203.84.124, 2333, username=fchendev, password=imlink
+HomeIP = http, ${chainSettings.server}, ${chainSettings.port}${authPart}
 
 [Proxy Group]
 Proxy = select, policy-path=YOUR_SUBSCRIPTION_URL
@@ -359,7 +423,6 @@ Proxy = select, policy-path=YOUR_SUBSCRIPTION_URL
 
             // Add selected rule sets
             for (const ruleFile of selectedRules) {
-                const ruleName = ruleFile.replace('.list', '');
                 config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},Proxy\n`;
             }
 
@@ -373,7 +436,7 @@ FINAL,Proxy
         }
 
         // Generate Clash configuration
-        async function generateClashConfig(useChain, customRules, selectedRules) {
+        function generateClashConfig(useChain, chainSettings, customRules, selectedRules) {
             let config = `port: 7890
 socks-port: 7891
 allow-lan: true
@@ -399,7 +462,7 @@ proxy-groups:
       - subscription
 `;
 
-            if (useChain) {
+            if (useChain && chainSettings.server && chainSettings.port) {
                 config += `
   - name: ChainProxy
     type: relay
@@ -410,11 +473,14 @@ proxy-groups:
 proxies:
   - name: HomeIP
     type: http
-    server: 46.203.84.124
-    port: 2333
-    username: fchendev
-    password: imlink
+    server: ${chainSettings.server}
+    port: ${chainSettings.port}
 `;
+                if (chainSettings.username && chainSettings.password) {
+                    config += `    username: ${chainSettings.username}
+    password: ${chainSettings.password}
+`;
+                }
             }
 
             config += `
@@ -458,7 +524,7 @@ rules:
         }
 
         // Generate Quantumult X configuration
-        async function generateQuantumultConfig(useChain, customRules, selectedRules) {
+        function generateQuantumultConfig(useChain, chainSettings, customRules, selectedRules) {
             let config = `[general]
 server_check_url=http://cp.cloudflare.com/generate_204
 dns_exclusion_list=*.cmpassport.com, *.jegotrip.com.cn, *.icitymobile.mobi, id6.me
@@ -471,12 +537,18 @@ server=223.5.5.5
 static=Proxy, proxy, direct
 `;
 
-            if (useChain) {
+            if (useChain && chainSettings.server && chainSettings.port) {
                 config += `static=ChainProxy, HomeIP, Proxy
 
 [server_local]
-http=46.203.84.124:2333, username=fchendev, password=imlink, tag=HomeIP
 `;
+                if (chainSettings.username && chainSettings.password) {
+                    config += `http=${chainSettings.server}:${chainSettings.port}, username=${chainSettings.username}, password=${chainSettings.password}, tag=HomeIP
+`;
+                } else {
+                    config += `http=${chainSettings.server}:${chainSettings.port}, tag=HomeIP
+`;
+                }
             }
 
             config += `
@@ -511,22 +583,23 @@ final, Proxy
         }
 
         // Generate button click handler
-        document.getElementById('generateBtn').addEventListener('click', async () => {
+        document.getElementById('generateBtn').addEventListener('click', () => {
             const format = getSelectedFormat();
             const useChain = document.getElementById('useChain').checked;
+            const chainSettings = getChainSettings();
             const customRules = document.getElementById('customRules').value;
             const selectedRules = getSelectedRules();
 
             let config;
             switch (format) {
                 case 'surge':
-                    config = await generateSurgeConfig(useChain, customRules, selectedRules);
+                    config = generateSurgeConfig(useChain, chainSettings, customRules, selectedRules);
                     break;
                 case 'clash':
-                    config = await generateClashConfig(useChain, customRules, selectedRules);
+                    config = generateClashConfig(useChain, chainSettings, customRules, selectedRules);
                     break;
                 case 'quantumult':
-                    config = await generateQuantumultConfig(useChain, customRules, selectedRules);
+                    config = generateQuantumultConfig(useChain, chainSettings, customRules, selectedRules);
                     break;
             }
 
