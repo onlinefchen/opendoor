@@ -794,15 +794,14 @@ proxy-providers:
             }
 
             // Create a policy group for each selected rule (except reject and direct)
+            // Use simple names without emoji for Clash compatibility
             for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
                 if (ruleName === 'reject' || ruleName === 'direct') continue;
 
-                const icon = getRuleIcon(ruleName);
                 const displayName = formatRuleName(ruleFile);
-                const groupName = `${icon} ${displayName}`;
 
-                config += `  - name: "${groupName}"
+                config += `  - name: ${displayName}
     type: select
     proxies:
       - Proxy
@@ -856,10 +855,8 @@ rules:
                 } else if (ruleName === 'direct') {
                     config += `  - RULE-SET,${ruleName},DIRECT\n`;
                 } else {
-                    const icon = getRuleIcon(ruleName);
                     const displayName = formatRuleName(ruleFile);
-                    const groupName = `${icon} ${displayName}`;
-                    config += `  - RULE-SET,${ruleName},"${groupName}"\n`;
+                    config += `  - RULE-SET,${ruleName},${displayName}\n`;
                 }
             }
 
