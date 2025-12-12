@@ -821,13 +821,14 @@ proxy-providers:
             config += `
 rule-providers:
 `;
-            // Add rule providers for selected rules
+            // Add rule providers for selected rules (use clash_rule directory with YAML format)
+            const clashRulesBaseUrl = CONFIG.rulesBaseUrl.replace('surge_rule', 'clash_rule');
             for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
                 config += `  ${ruleName}:
     type: http
     behavior: classical
-    url: ${CONFIG.rulesBaseUrl}/${ruleFile}
+    url: ${clashRulesBaseUrl}/${ruleFile}
     path: ./rules/${ruleFile}
     interval: 86400
 `;
