@@ -619,16 +619,16 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
 
         // Generate Surge configuration
         function generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
-            // Build [Proxy] section first
+            // Build [Proxy] section - HomeIP without underlying-proxy (will use relay group)
             let proxySection = '';
             if (useChain && chainSettings.server && chainSettings.port) {
                 let authPart = '';
                 if (chainSettings.username && chainSettings.password) {
                     authPart = `, username=${chainSettings.username}, password=${chainSettings.password}`;
                 }
-                // HomeIP uses ChainSelect as underlying proxy
-                // Traffic flow: You -> ChainSelect(proxy node) -> HomeIP -> Internet
-                proxySection = `HomeIP = http, ${chainSettings.server}, ${chainSettings.port}${authPart}, underlying-proxy=ChainSelect
+                // HomeIP is the final destination proxy (your home IP)
+                proxySection = `# Home IP proxy server
+HomeIP = http, ${chainSettings.server}, ${chainSettings.port}${authPart}
 `;
             }
 
@@ -650,11 +650,13 @@ Proxy = select, policy-path=${subscriptionUrl}
 
             // Add ChainProxy if chain settings provided
             // Chain: You -> Proxy Node -> HomeIP -> Internet
+            // Using relay type: traffic goes through each proxy in order
             if (useChain && chainSettings.server && chainSettings.port) {
                 config += `# Select which proxy node to use as the first hop for chain
 ChainSelect = select, policy-path=${subscriptionUrl}
-# ChainProxy points to HomeIP which uses ChainSelect as underlying proxy
-ChainProxy = select, HomeIP
+# Relay chain: You -> ChainSelect -> HomeIP -> Internet
+# relay type processes proxies in order (first hop, then second hop)
+ChainProxy = relay, ChainSelect, HomeIP
 `;
             }
 
