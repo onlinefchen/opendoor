@@ -416,10 +416,12 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
 
                 rulesData = { rules };
                 renderRules();
+                return true;
             } catch (error) {
                 console.error('Failed to load rules:', error);
                 document.getElementById('rulesContainer').innerHTML =
                     '<div class="loading">Failed to load rules. Please refresh the page.</div>';
+                return false;
             }
         }
 
@@ -889,8 +891,128 @@ final, ${proxyPolicy}
             });
         });
 
+        // LocalStorage keys
+        const STORAGE_KEYS = {
+            subscriptionUrl: 'opendoor_subscriptionUrl',
+            githubToken: 'opendoor_githubToken',
+            format: 'opendoor_format',
+            useChain: 'opendoor_useChain',
+            chainServer: 'opendoor_chainServer',
+            chainPort: 'opendoor_chainPort',
+            chainUsername: 'opendoor_chainUsername',
+            chainPassword: 'opendoor_chainPassword',
+            customRules: 'opendoor_customRules',
+            selectedRules: 'opendoor_selectedRules'
+        };
+
+        // Save to localStorage
+        function saveToStorage(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (e) {
+                console.warn('Failed to save to localStorage:', e);
+            }
+        }
+
+        // Load from localStorage
+        function loadFromStorage(key, defaultValue = '') {
+            try {
+                const value = localStorage.getItem(key);
+                return value ? JSON.parse(value) : defaultValue;
+            } catch (e) {
+                return defaultValue;
+            }
+        }
+
+        // Restore saved values on page load
+        function restoreSavedValues() {
+            // Text inputs
+            document.getElementById('subscriptionUrl').value = loadFromStorage(STORAGE_KEYS.subscriptionUrl, '');
+            document.getElementById('githubToken').value = loadFromStorage(STORAGE_KEYS.githubToken, '');
+            document.getElementById('chainServer').value = loadFromStorage(STORAGE_KEYS.chainServer, '');
+            document.getElementById('chainPort').value = loadFromStorage(STORAGE_KEYS.chainPort, '');
+            document.getElementById('chainUsername').value = loadFromStorage(STORAGE_KEYS.chainUsername, '');
+            document.getElementById('chainPassword').value = loadFromStorage(STORAGE_KEYS.chainPassword, '');
+            document.getElementById('customRules').value = loadFromStorage(STORAGE_KEYS.customRules, '');
+
+            // Chain checkbox
+            const useChain = loadFromStorage(STORAGE_KEYS.useChain, false);
+            document.getElementById('useChain').checked = useChain;
+            if (useChain) {
+                document.getElementById('chainSettings').classList.add('show');
+            }
+
+            // Format selection
+            const savedFormat = loadFromStorage(STORAGE_KEYS.format, 'surge');
+            document.querySelectorAll('.format-option').forEach(o => {
+                o.classList.remove('selected');
+                if (o.dataset.format === savedFormat) {
+                    o.classList.add('selected');
+                }
+            });
+        }
+
+        // Restore rule checkboxes after rules are loaded
+        function restoreRuleSelections() {
+            const savedRules = loadFromStorage(STORAGE_KEYS.selectedRules, null);
+            if (savedRules && Array.isArray(savedRules)) {
+                document.querySelectorAll('#rulesContainer input[type="checkbox"]').forEach(cb => {
+                    cb.checked = savedRules.includes(cb.dataset.file);
+                });
+            }
+        }
+
+        // Setup auto-save listeners
+        function setupAutoSave() {
+            // Text inputs
+            document.getElementById('subscriptionUrl').addEventListener('input', (e) => {
+                saveToStorage(STORAGE_KEYS.subscriptionUrl, e.target.value);
+            });
+            document.getElementById('githubToken').addEventListener('input', (e) => {
+                saveToStorage(STORAGE_KEYS.githubToken, e.target.value);
+            });
+            document.getElementById('chainServer').addEventListener('input', (e) => {
+                saveToStorage(STORAGE_KEYS.chainServer, e.target.value);
+            });
+            document.getElementById('chainPort').addEventListener('input', (e) => {
+                saveToStorage(STORAGE_KEYS.chainPort, e.target.value);
+            });
+            document.getElementById('chainUsername').addEventListener('input', (e) => {
+                saveToStorage(STORAGE_KEYS.chainUsername, e.target.value);
+            });
+            document.getElementById('chainPassword').addEventListener('input', (e) => {
+                saveToStorage(STORAGE_KEYS.chainPassword, e.target.value);
+            });
+            document.getElementById('customRules').addEventListener('input', (e) => {
+                saveToStorage(STORAGE_KEYS.customRules, e.target.value);
+            });
+
+            // Chain checkbox
+            document.getElementById('useChain').addEventListener('change', (e) => {
+                saveToStorage(STORAGE_KEYS.useChain, e.target.checked);
+            });
+
+            // Format selection
+            document.querySelectorAll('.format-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    saveToStorage(STORAGE_KEYS.format, option.dataset.format);
+                });
+            });
+
+            // Rule checkboxes - use event delegation
+            document.getElementById('rulesContainer').addEventListener('change', (e) => {
+                if (e.target.type === 'checkbox') {
+                    saveToStorage(STORAGE_KEYS.selectedRules, getSelectedRules());
+                }
+            });
+        }
+
         // Initialize
-        loadRules();
+        restoreSavedValues();
+        setupAutoSave();
+        loadRules().then(() => {
+            restoreRuleSelections();
+        });
     </script>
 </body>
 </html>
