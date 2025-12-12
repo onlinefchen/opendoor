@@ -48,17 +48,25 @@
             color: #86868b;
         }
 
+        .category-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin: 16px 0 8px 0;
+            color: #1d1d1f;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .category-title:first-child {
+            margin-top: 0;
+        }
+
         label {
             display: flex;
             align-items: center;
-            padding: 12px 0;
+            padding: 10px 0;
             cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
             font-size: 14px;
-        }
-
-        label:last-child {
-            border-bottom: none;
         }
 
         .checkbox-label {
@@ -70,8 +78,8 @@
         }
 
         input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             margin-right: 12px;
             accent-color: #0071e3;
         }
@@ -129,6 +137,12 @@
             display: block;
         }
 
+        .rules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 4px 16px;
+        }
+
         button {
             background: #0071e3;
             color: #fff;
@@ -148,6 +162,11 @@
 
         button:active {
             background: #006edb;
+        }
+
+        button:disabled {
+            background: #86868b;
+            cursor: not-allowed;
         }
 
         .output {
@@ -220,10 +239,34 @@
             background: #e8f4fd;
         }
 
-        .error {
-            color: #ff3b30;
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #86868b;
+        }
+
+        .select-all-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 8px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .select-all-btn {
+            background: none;
+            border: 1px solid #d2d2d7;
+            padding: 6px 12px;
+            border-radius: 6px;
             font-size: 12px;
-            margin-top: 4px;
+            color: #1d1d1f;
+            cursor: pointer;
+            width: auto;
+        }
+
+        .select-all-btn:hover {
+            border-color: #0071e3;
+            color: #0071e3;
         }
     </style>
 </head>
@@ -290,20 +333,14 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
 
         <div class="section">
             <div class="section-title">Rule Categories</div>
-            <label><input type="checkbox" id="rule-telegram" checked> Telegram</label>
-            <label><input type="checkbox" id="rule-youtube" checked> YouTube</label>
-            <label><input type="checkbox" id="rule-netflix" checked> Netflix</label>
-            <label><input type="checkbox" id="rule-disney" checked> Disney+</label>
-            <label><input type="checkbox" id="rule-tiktok" checked> TikTok</label>
-            <label><input type="checkbox" id="rule-chatgpt" checked> ChatGPT</label>
-            <label><input type="checkbox" id="rule-claude" checked> Claude</label>
-            <label><input type="checkbox" id="rule-gemini" checked> Gemini</label>
-            <label><input type="checkbox" id="rule-copilot" checked> Copilot</label>
-            <label><input type="checkbox" id="rule-microsoft" checked> Microsoft</label>
-            <label><input type="checkbox" id="rule-apple" checked> Apple</label>
-            <label><input type="checkbox" id="rule-steam" checked> Steam</label>
-            <label><input type="checkbox" id="rule-bilibili"> Bilibili</label>
-            <label><input type="checkbox" id="rule-netease"> NetEase Music</label>
+            <div class="select-all-row">
+                <button class="select-all-btn" id="selectAllBtn">Select All</button>
+                <button class="select-all-btn" id="deselectAllBtn">Deselect All</button>
+                <button class="select-all-btn" id="resetDefaultBtn">Reset Default</button>
+            </div>
+            <div id="rulesContainer">
+                <div class="loading">Loading rules...</div>
+            </div>
         </div>
 
         <button id="generateBtn">Generate Configuration</button>
@@ -320,7 +357,86 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         // Configuration
         const CONFIG = {
             rulesBaseUrl: 'https://raw.githubusercontent.com/onlinefchen/opendoor/main/surge_rule',
+            rulesJsonUrl: 'https://raw.githubusercontent.com/onlinefchen/opendoor/main/surge_rule/rules.json'
         };
+
+        let rulesData = null;
+
+        // Load rules from JSON
+        async function loadRules() {
+            try {
+                const response = await fetch(CONFIG.rulesJsonUrl);
+                rulesData = await response.json();
+                renderRules();
+            } catch (error) {
+                console.error('Failed to load rules:', error);
+                document.getElementById('rulesContainer').innerHTML =
+                    '<div class="loading">Failed to load rules. Please refresh the page.</div>';
+            }
+        }
+
+        // Render rules by category
+        function renderRules() {
+            const container = document.getElementById('rulesContainer');
+            container.innerHTML = '';
+
+            const rulesByCategory = {};
+            rulesData.rules.forEach(rule => {
+                if (!rulesByCategory[rule.category]) {
+                    rulesByCategory[rule.category] = [];
+                }
+                rulesByCategory[rule.category].push(rule);
+            });
+
+            const categoryOrder = ['ai', 'media', 'social', 'service', 'game', 'other'];
+
+            categoryOrder.forEach(categoryId => {
+                if (!rulesByCategory[categoryId]) return;
+
+                const categoryName = rulesData.categories[categoryId] || categoryId;
+                const rules = rulesByCategory[categoryId];
+
+                const categoryTitle = document.createElement('div');
+                categoryTitle.className = 'category-title';
+                categoryTitle.textContent = categoryName;
+                container.appendChild(categoryTitle);
+
+                const rulesGrid = document.createElement('div');
+                rulesGrid.className = 'rules-grid';
+
+                rules.forEach(rule => {
+                    const label = document.createElement('label');
+                    label.innerHTML = `
+                        <input type="checkbox" id="rule-${rule.id}" data-file="${rule.file}" ${rule.default ? 'checked' : ''}>
+                        ${rule.name}
+                    `;
+                    rulesGrid.appendChild(label);
+                });
+
+                container.appendChild(rulesGrid);
+            });
+        }
+
+        // Select all rules
+        document.getElementById('selectAllBtn').addEventListener('click', () => {
+            document.querySelectorAll('#rulesContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+        });
+
+        // Deselect all rules
+        document.getElementById('deselectAllBtn').addEventListener('click', () => {
+            document.querySelectorAll('#rulesContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
+        });
+
+        // Reset to default
+        document.getElementById('resetDefaultBtn').addEventListener('click', () => {
+            if (!rulesData) return;
+            rulesData.rules.forEach(rule => {
+                const checkbox = document.getElementById(`rule-${rule.id}`);
+                if (checkbox) {
+                    checkbox.checked = rule.default;
+                }
+            });
+        });
 
         // Toggle chain settings visibility
         document.getElementById('useChain').addEventListener('change', function() {
@@ -363,35 +479,9 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
         // Get selected rules
         function getSelectedRules() {
             const rules = [];
-            const ruleMap = {
-                'telegram': 'telegram.list',
-                'youtube': 'youtube.list',
-                'netflix': 'netflix.list',
-                'disney': 'disney.list',
-                'tiktok': 'tiktok.list',
-                'chatgpt': 'chatgpt.list',
-                'claude': 'claude.list',
-                'gemini': 'gemini.list',
-                'copilot': 'copilot.list',
-                'microsoft': 'microsoft.list',
-                'apple': 'apple.list',
-                'steam': ['steam_web.list', 'steam_download.list'],
-                'bilibili': 'bilibili.list',
-                'netease': 'netease_music.list'
-            };
-
-            Object.keys(ruleMap).forEach(key => {
-                const checkbox = document.getElementById(`rule-${key}`);
-                if (checkbox && checkbox.checked) {
-                    const files = ruleMap[key];
-                    if (Array.isArray(files)) {
-                        rules.push(...files);
-                    } else {
-                        rules.push(files);
-                    }
-                }
+            document.querySelectorAll('#rulesContainer input[type="checkbox"]:checked').forEach(cb => {
+                rules.push(cb.dataset.file);
             });
-
             return rules;
         }
 
@@ -443,14 +533,27 @@ Proxy = select, policy-path=${subscriptionUrl}
                 config += '\n';
             }
 
-            // Add selected rule sets
-            for (const ruleFile of selectedRules) {
+            // Add selected rule sets (except direct which goes at the end)
+            const directRule = selectedRules.find(r => r === 'direct.list');
+            const otherRules = selectedRules.filter(r => r !== 'direct.list' && r !== 'reject.list');
+            const rejectRule = selectedRules.find(r => r === 'reject.list');
+
+            // Reject rules first
+            if (rejectRule) {
+                config += `RULE-SET,${CONFIG.rulesBaseUrl}/${rejectRule},REJECT\n`;
+            }
+
+            // Other proxy rules
+            for (const ruleFile of otherRules) {
                 config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},Proxy\n`;
             }
 
-            // Add direct and final rules
-            config += `RULE-SET,${CONFIG.rulesBaseUrl}/direct.list,DIRECT
-GEOIP,CN,DIRECT
+            // Direct rules
+            if (directRule) {
+                config += `RULE-SET,${CONFIG.rulesBaseUrl}/${directRule},DIRECT\n`;
+            }
+
+            config += `GEOIP,CN,DIRECT
 FINAL,Proxy
 `;
 
@@ -533,9 +636,19 @@ rules:
             }
 
             // Add rule-set rules
-            for (const ruleFile of selectedRules) {
+            const directRule = selectedRules.find(r => r === 'direct.list');
+            const otherRules = selectedRules.filter(r => r !== 'direct.list' && r !== 'reject.list');
+            const rejectRule = selectedRules.find(r => r === 'reject.list');
+
+            if (rejectRule) {
+                config += `  - RULE-SET,reject,REJECT\n`;
+            }
+            for (const ruleFile of otherRules) {
                 const ruleName = ruleFile.replace('.list', '');
                 config += `  - RULE-SET,${ruleName},Proxy\n`;
+            }
+            if (directRule) {
+                config += `  - RULE-SET,direct,DIRECT\n`;
             }
 
             config += `  - GEOIP,CN,DIRECT
@@ -580,8 +693,18 @@ ${subscriptionUrl}, tag=Subscription, update-interval=86400, opt-parser=true
 [filter_remote]
 `;
 
-            for (const ruleFile of selectedRules) {
-                config += `${CONFIG.rulesBaseUrl}/${ruleFile}, tag=${ruleFile.replace('.list', '')}, update-interval=86400, opt-parser=true, enabled=true\n`;
+            const directRule = selectedRules.find(r => r === 'direct.list');
+            const otherRules = selectedRules.filter(r => r !== 'direct.list' && r !== 'reject.list');
+            const rejectRule = selectedRules.find(r => r === 'reject.list');
+
+            if (rejectRule) {
+                config += `${CONFIG.rulesBaseUrl}/${rejectRule}, tag=reject, force-policy=reject, update-interval=86400, opt-parser=true, enabled=true\n`;
+            }
+            for (const ruleFile of otherRules) {
+                config += `${CONFIG.rulesBaseUrl}/${ruleFile}, tag=${ruleFile.replace('.list', '')}, force-policy=Proxy, update-interval=86400, opt-parser=true, enabled=true\n`;
+            }
+            if (directRule) {
+                config += `${CONFIG.rulesBaseUrl}/${directRule}, tag=direct, force-policy=direct, update-interval=86400, opt-parser=true, enabled=true\n`;
             }
 
             config += `
@@ -656,6 +779,9 @@ final, Proxy
                 document.getElementById('status').textContent = 'Failed to copy: ' + err;
             });
         });
+
+        // Initialize
+        loadRules();
     </script>
 </body>
 </html>

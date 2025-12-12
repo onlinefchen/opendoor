@@ -1,0 +1,35 @@
+{
+  "rules": [
+    {"id": "telegram", "name": "Telegram", "file": "telegram.list", "default": true, "category": "social"},
+    {"id": "youtube", "name": "YouTube", "file": "youtube.list", "default": true, "category": "media"},
+    {"id": "netflix", "name": "Netflix", "file": "netflix.list", "default": true, "category": "media"},
+    {"id": "disney", "name": "Disney+", "file": "disney.list", "default": true, "category": "media"},
+    {"id": "bahamut", "name": "Bahamut", "file": "bahamut.list", "default": false, "category": "media"},
+    {"id": "bilibili", "name": "Bilibili", "file": "bilibili.list", "default": false, "category": "media"},
+    {"id": "tiktok", "name": "TikTok", "file": "tiktok.list", "default": true, "category": "media"},
+    {"id": "chatgpt", "name": "ChatGPT", "file": "chatgpt.list", "default": true, "category": "ai"},
+    {"id": "claude", "name": "Claude", "file": "claude.list", "default": true, "category": "ai"},
+    {"id": "gemini", "name": "Gemini", "file": "gemini.list", "default": true, "category": "ai"},
+    {"id": "copilot", "name": "Copilot", "file": "copilot.list", "default": true, "category": "ai"},
+    {"id": "microsoft", "name": "Microsoft", "file": "microsoft.list", "default": true, "category": "service"},
+    {"id": "microsoft_onedrive", "name": "OneDrive", "file": "microsoft_onedrive.list", "default": true, "category": "service"},
+    {"id": "apple", "name": "Apple", "file": "apple.list", "default": true, "category": "service"},
+    {"id": "google_fcm", "name": "Google FCM", "file": "google_fcm.list", "default": true, "category": "service"},
+    {"id": "cloudflare", "name": "CloudFlare", "file": "cloudflare.list", "default": true, "category": "service"},
+    {"id": "steam_web", "name": "Steam Web", "file": "steam_web.list", "default": true, "category": "game"},
+    {"id": "steam_download", "name": "Steam Download", "file": "steam_download.list", "default": false, "category": "game"},
+    {"id": "game", "name": "Game Platforms", "file": "game.list", "default": false, "category": "game"},
+    {"id": "netease_music", "name": "NetEase Music", "file": "netease_music.list", "default": false, "category": "media"},
+    {"id": "reject", "name": "Ad Block", "file": "reject.list", "default": true, "category": "other"},
+    {"id": "proxy", "name": "Proxy (Global)", "file": "proxy.list", "default": false, "category": "other"},
+    {"id": "direct", "name": "Direct (CN)", "file": "direct.list", "default": true, "category": "other"}
+  ],
+  "categories": {
+    "ai": "AI Services",
+    "media": "Media & Entertainment",
+    "social": "Social",
+    "service": "Cloud Services",
+    "game": "Gaming",
+    "other": "Other"
+  }
+}
