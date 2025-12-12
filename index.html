@@ -743,7 +743,26 @@ proxy-providers:
       interval: 600
       url: http://www.gstatic.com/generate_204
 
-proxy-groups:
+`;
+
+            // Build proxies section first (if chain enabled)
+            if (useChain && chainSettings.server && chainSettings.port) {
+                config += `proxies:
+  - name: HomeIP
+    type: http
+    server: ${chainSettings.server}
+    port: ${chainSettings.port}
+`;
+                if (chainSettings.username && chainSettings.password) {
+                    config += `    username: ${chainSettings.username}
+    password: ${chainSettings.password}
+`;
+                }
+                config += `
+`;
+            }
+
+            config += `proxy-groups:
 `;
 
             // Add ChainProxy if chain settings provided
@@ -765,18 +784,7 @@ proxy-groups:
     proxies:
       - ChainSelect
       - HomeIP
-
-proxies:
-  - name: HomeIP
-    type: http
-    server: ${chainSettings.server}
-    port: ${chainSettings.port}
 `;
-                if (chainSettings.username && chainSettings.password) {
-                    config += `    username: ${chainSettings.username}
-    password: ${chainSettings.password}
-`;
-                }
             } else {
                 config += `  - name: Proxy
     type: select
@@ -784,10 +792,6 @@ proxies:
       - subscription
 `;
             }
-
-            config += `
-# Per-category policy groups
-`;
 
             // Create a policy group for each selected rule (except reject and direct)
             for (const ruleFile of selectedRules) {
