@@ -514,6 +514,9 @@ Proxy = select, policy-path=${subscriptionUrl}
 [Rule]
 `;
 
+            // Determine which policy to use for proxy rules
+            const proxyPolicy = useChain ? 'ChainProxy' : 'Proxy';
+
             // Add custom rules first (priority)
             if (customRules.trim()) {
                 config += `# Custom Rules (Priority)\n`;
@@ -535,9 +538,9 @@ Proxy = select, policy-path=${subscriptionUrl}
                 config += `RULE-SET,${CONFIG.rulesBaseUrl}/${rejectRule},REJECT\n`;
             }
 
-            // Other proxy rules
+            // Other proxy rules - use ChainProxy if chain mode enabled
             for (const ruleFile of otherRules) {
-                config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},Proxy\n`;
+                config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},${proxyPolicy}\n`;
             }
 
             // Direct rules
@@ -546,7 +549,7 @@ Proxy = select, policy-path=${subscriptionUrl}
             }
 
             config += `GEOIP,CN,DIRECT
-FINAL,Proxy
+FINAL,${proxyPolicy}
 `;
 
             return config;
@@ -632,19 +635,22 @@ rules:
             const otherRules = selectedRules.filter(r => r !== 'direct.list' && r !== 'reject.list');
             const rejectRule = selectedRules.find(r => r === 'reject.list');
 
+            // Determine which policy to use for proxy rules
+            const proxyPolicy = useChain ? 'ChainProxy' : 'Proxy';
+
             if (rejectRule) {
                 config += `  - RULE-SET,reject,REJECT\n`;
             }
             for (const ruleFile of otherRules) {
                 const ruleName = ruleFile.replace('.list', '');
-                config += `  - RULE-SET,${ruleName},Proxy\n`;
+                config += `  - RULE-SET,${ruleName},${proxyPolicy}\n`;
             }
             if (directRule) {
                 config += `  - RULE-SET,direct,DIRECT\n`;
             }
 
             config += `  - GEOIP,CN,DIRECT
-  - MATCH,Proxy
+  - MATCH,${proxyPolicy}
 `;
 
             return config;
@@ -689,11 +695,14 @@ ${subscriptionUrl}, tag=Subscription, update-interval=86400, opt-parser=true
             const otherRules = selectedRules.filter(r => r !== 'direct.list' && r !== 'reject.list');
             const rejectRule = selectedRules.find(r => r === 'reject.list');
 
+            // Determine which policy to use for proxy rules
+            const proxyPolicy = useChain ? 'ChainProxy' : 'Proxy';
+
             if (rejectRule) {
                 config += `${CONFIG.rulesBaseUrl}/${rejectRule}, tag=reject, force-policy=reject, update-interval=86400, opt-parser=true, enabled=true\n`;
             }
             for (const ruleFile of otherRules) {
-                config += `${CONFIG.rulesBaseUrl}/${ruleFile}, tag=${ruleFile.replace('.list', '')}, force-policy=Proxy, update-interval=86400, opt-parser=true, enabled=true\n`;
+                config += `${CONFIG.rulesBaseUrl}/${ruleFile}, tag=${ruleFile.replace('.list', '')}, force-policy=${proxyPolicy}, update-interval=86400, opt-parser=true, enabled=true\n`;
             }
             if (directRule) {
                 config += `${CONFIG.rulesBaseUrl}/${directRule}, tag=direct, force-policy=direct, update-interval=86400, opt-parser=true, enabled=true\n`;
@@ -713,7 +722,7 @@ ${subscriptionUrl}, tag=Subscription, update-interval=86400, opt-parser=true
             }
 
             config += `geoip, cn, direct
-final, Proxy
+final, ${proxyPolicy}
 `;
 
             return config;
