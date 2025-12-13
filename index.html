@@ -659,7 +659,19 @@ Proxy = select, policy-path=${subscriptionUrl}
             for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
                 // Skip special rules that don't need their own policy group
-                if (ruleName === 'reject' || ruleName === 'direct' || ruleName === 'final') continue;
+                if (ruleName === 'reject' || ruleName === 'direct') continue;
+
+                // Special handling for 'final' - create a group for unmatched traffic
+                if (ruleName === 'final') {
+                    if (useChain && chainSettings.server && chainSettings.port) {
+                        proxyGroupSection += `🐟 Final = select, Proxy, ChainProxy, DIRECT, policy-path=${subscriptionUrl}
+`;
+                    } else {
+                        proxyGroupSection += `🐟 Final = select, Proxy, DIRECT, policy-path=${subscriptionUrl}
+`;
+                    }
+                    continue;
+                }
 
                 const icon = getRuleIcon(ruleName);
                 const displayName = formatRuleName(ruleFile);
@@ -722,8 +734,10 @@ ${proxySection}
                 }
             }
 
+            // Check if 'final' rule is selected to determine FINAL target
+            const hasFinalRule = selectedRules.some(r => r.replace('.list', '') === 'final');
             config += `GEOIP,CN,DIRECT
-FINAL,Proxy
+FINAL,${hasFinalRule ? '🐟 Final' : 'Proxy'}
 `;
 
             return config;
@@ -803,8 +817,26 @@ proxy-providers:
             // Use simple names without emoji for Clash compatibility
             for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
-                // Skip: reject, direct (built-in), proxy (conflicts with main Proxy), final (handled by MATCH)
-                if (ruleName === 'reject' || ruleName === 'direct' || ruleName === 'proxy' || ruleName === 'final') continue;
+                // Skip: reject, direct (built-in), proxy (conflicts with main Proxy)
+                if (ruleName === 'reject' || ruleName === 'direct' || ruleName === 'proxy') continue;
+
+                // Special handling for 'final' - create a group for unmatched traffic
+                if (ruleName === 'final') {
+                    config += `  - name: Final
+    type: select
+    proxies:
+      - Proxy
+`;
+                    if (useChain && chainSettings.server && chainSettings.port) {
+                        config += `      - ChainProxy
+`;
+                    }
+                    config += `      - DIRECT
+    use:
+      - subscription
+`;
+                    continue;
+                }
 
                 const displayName = formatRuleName(ruleFile);
 
@@ -873,8 +905,10 @@ rules:
                 }
             }
 
+            // Check if 'final' rule is selected to determine MATCH target
+            const hasFinalRuleClash = selectedRules.some(r => r.replace('.list', '') === 'final');
             config += `  - GEOIP,CN,DIRECT
-  - MATCH,Proxy
+  - MATCH,${hasFinalRuleClash ? 'Final' : 'Proxy'}
 `;
 
             return config;
