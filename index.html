@@ -658,7 +658,8 @@ Proxy = select, policy-path=${subscriptionUrl}
 `;
             for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
-                if (ruleName === 'reject' || ruleName === 'direct') continue;
+                // Skip special rules that don't need their own policy group
+                if (ruleName === 'reject' || ruleName === 'direct' || ruleName === 'final') continue;
 
                 const icon = getRuleIcon(ruleName);
                 const displayName = formatRuleName(ruleFile);
@@ -705,6 +706,9 @@ ${proxySection}
             // Add rules pointing to their respective policy groups
             for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
+
+                // Skip 'final' - it's handled by FINAL rule at the end
+                if (ruleName === 'final') continue;
 
                 if (ruleName === 'reject') {
                     config += `RULE-SET,${CONFIG.rulesBaseUrl}/${ruleFile},REJECT\n`;
@@ -795,11 +799,12 @@ proxy-providers:
 `;
             }
 
-            // Create a policy group for each selected rule (except reject, direct, and proxy which conflicts with main Proxy group)
+            // Create a policy group for each selected rule (except special rules)
             // Use simple names without emoji for Clash compatibility
             for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
-                if (ruleName === 'reject' || ruleName === 'direct' || ruleName === 'proxy') continue;
+                // Skip: reject, direct (built-in), proxy (conflicts with main Proxy), final (handled by MATCH)
+                if (ruleName === 'reject' || ruleName === 'direct' || ruleName === 'proxy' || ruleName === 'final') continue;
 
                 const displayName = formatRuleName(ruleFile);
 
@@ -851,6 +856,9 @@ rules:
             // Add rules pointing to their respective policy groups
             for (const ruleFile of selectedRules) {
                 const ruleName = ruleFile.replace('.list', '');
+
+                // Skip 'final' - it's handled by MATCH rule at the end
+                if (ruleName === 'final') continue;
 
                 if (ruleName === 'reject') {
                     config += `  - RULE-SET,${ruleName},REJECT\n`;
