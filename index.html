@@ -344,6 +344,16 @@
         </div>
 
         <div class="section">
+            <div class="section-title">Company/Intranet Settings</div>
+            <div class="input-group">
+                <span class="input-label">Enter internal company URLs or domains (one per line). These will be set to DIRECT, use local DNS, and bypass Fake-IP.</span>
+                <textarea id="intranetUrls" placeholder="http://git.company.com/dashboard/self
+*.internal.corp
+10.0.0.0/8"></textarea>
+            </div>
+        </div>
+
+        <div class="section">
             <div class="section-title">Custom Rules (Priority)</div>
             <div class="input-group">
                 <span class="input-label">Enter custom rules, one per line (these rules will be matched first)</span>
@@ -619,8 +629,36 @@ IP-CIDR,192.168.1.0/24,DIRECT"></textarea>
             return name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         }
 
+        // Helper: Extract domain/IP from URL or string
+        function extractDomain(input) {
+            input = input.trim();
+            if (!input) return null;
+            
+            // Handle wildcards or simple domains/IPs directly
+            if (input.startsWith('*') || /^\d+\.\d+\.\d+\.\d+/.test(input)) {
+                return input;
+            }
+
+            try {
+                // Try to parse as URL
+                const url = new URL(input.startsWith('http') ? input : 'http://' + input);
+                return url.hostname;
+            } catch (e) {
+                return input; // Fallback to original string
+            }
+        }
+
+        function processIntranetLines(text) {
+            if (!text) return [];
+            return text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line)
+                .map(line => extractDomain(line))
+                .filter(domain => domain);
+        }
+
         // Generate Surge configuration
-        function generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
+        function generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules, intranetDomains) {
             // Build proxy section
             let proxySection = '';
             let chainAuthPart = '';
@@ -686,6 +724,32 @@ Proxy = select, policy-path=${subscriptionUrl}
                 }
             }
 
+            // Intranet Settings Processing
+            const skipProxyList = ['127.0.0.1', '192.168.0.0/16', '10.0.0.0/8', '172.16.0.0/12', '100.64.0.0/10', 'localhost', '*.local'];
+            const alwaysRealIpList = [];
+            const hostRules = [];
+            const ruleRules = [];
+
+            if (intranetDomains && intranetDomains.length > 0) {
+                intranetDomains.forEach(domain => {
+                    // Skip proxy
+                    skipProxyList.push(domain);
+                    
+                    // Always real IP (Fake-IP filter equivalent)
+                    alwaysRealIpList.push(domain);
+                    
+                    // Host mapping (force system DNS)
+                    hostRules.push(`${domain} = server:system`);
+                    
+                    // Rule (Priority DIRECT)
+                    if (/^\d+\.\d+\.\d+\.\d+(\/\d+)?$/.test(domain)) {
+                        ruleRules.push(`IP-CIDR,${domain},DIRECT,no-resolve`);
+                    } else {
+                        ruleRules.push(`DOMAIN-SUFFIX,${domain},DIRECT`);
+                    }
+                });
+            }
+
             // Assemble config: [General] -> [Proxy Group] -> [Proxy] -> [Rule]
             // This order ensures ChainSelect is defined before HomeIP references it
             let config = `#!MANAGED-CONFIG interval=86400
@@ -693,9 +757,13 @@ Proxy = select, policy-path=${subscriptionUrl}
 [General]
 loglevel = notify
 dns-server = system, 114.114.114.114, 223.5.5.5
-skip-proxy = 127.0.0.1, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10, localhost, *.local
+skip-proxy = ${skipProxyList.join(', ')}
 ipv6 = true
 test-timeout = 3
+${alwaysRealIpList.length > 0 ? `always-real-ip = ${alwaysRealIpList.join(', ')}` : ''}
+
+[Host]
+${hostRules.join('\n')}
 
 [Proxy Group]
 ${proxyGroupSection}
@@ -703,6 +771,12 @@ ${proxyGroupSection}
 ${proxySection}
 [Rule]
 `;
+
+            // Add Intranet priority rules first
+            if (ruleRules.length > 0) {
+                config += `# Intranet / Company Rules (Priority)\n`;
+                config += ruleRules.join('\n') + '\n\n';
+            }
 
             // Add custom rules first (priority)
             if (customRules.trim()) {
@@ -744,13 +818,79 @@ FINAL,${hasFinalRule ? '🐟 Final' : 'Proxy'}
         }
 
         // Generate Clash configuration
-        function generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
+        function generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules, intranetDomains) {
+            
+            // Intranet Settings Processing
+            const skipProxyList = [
+                'localhost',
+                '127.0.0.1',
+                '"10.*"',
+                '"172.16.*"',
+                '"192.168.*"'
+            ];
+            const fakeIpFilterList = ['*.local', 'localhost'];
+            const nameserverPolicy = {};
+            const intranetRules = [];
+
+            if (intranetDomains && intranetDomains.length > 0) {
+                intranetDomains.forEach(domain => {
+                    // Skip proxy
+                    skipProxyList.push(`"${domain}"`);
+                    
+                    // Fake IP Filter
+                    fakeIpFilterList.push(domain);
+                    
+                    // Nameserver Policy (system DNS)
+                    nameserverPolicy[`"${domain}"`] = 'system';
+                    
+                    // Rules
+                    if (/^\d+\.\d+\.\d+\.\d+(\/\d+)?$/.test(domain)) {
+                        intranetRules.push(`- IP-CIDR,${domain},DIRECT,no-resolve`);
+                    } else {
+                        // Check if wildcard
+                        if (domain.startsWith('*.')) {
+                            intranetRules.push(`- DOMAIN-SUFFIX,${domain.substring(2)},DIRECT`);
+                        } else {
+                            intranetRules.push(`- DOMAIN-SUFFIX,${domain},DIRECT`);
+                        }
+                    }
+                });
+            }
+
+            // Convert lists to YAML strings
+            const skipProxyYaml = skipProxyList.map(item => `  - ${item}`).join('\n');
+            const fakeIpFilterYaml = fakeIpFilterList.map(item => `    - "${item}"`).join('\n');
+            const nameserverPolicyYaml = Object.entries(nameserverPolicy)
+                .map(([key, value]) => `    ${key}: ${value}`)
+                .join('\n');
+
             let config = `port: 7890
 socks-port: 7891
 allow-lan: true
 mode: Rule
 log-level: info
 external-controller: 127.0.0.1:9090
+
+# 1. System Level Bypass
+skip-proxy:
+${skipProxyYaml}
+
+# 2. DNS Precise Parsing
+dns:
+  enable: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  listen: 0.0.0.0:53
+  
+  fake-ip-filter:
+${fakeIpFilterYaml}
+
+  nameserver:
+    - 223.5.5.5
+    - system
+
+  nameserver-policy:
+${nameserverPolicyYaml}
 
 proxy-providers:
   subscription:
@@ -876,6 +1016,14 @@ rule-providers:
 rules:
 `;
 
+            // Add Intranet priority rules
+            if (intranetRules.length > 0) {
+                config += `  # Intranet / Company Rules (Priority)\n`;
+                intranetRules.forEach(rule => {
+                    config += `  ${rule}\n`;
+                });
+            }
+
             // Add custom rules
             if (customRules.trim()) {
                 customRules.trim().split('\n').forEach(rule => {
@@ -915,10 +1063,10 @@ rules:
         }
 
         // Generate Quantumult X configuration
-        function generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules) {
+        function generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules, intranetDomains) {
             let config = `[general]
 server_check_url=http://cp.cloudflare.com/generate_204
-dns_exclusion_list=*.cmpassport.com, *.jegotrip.com.cn, *.icitymobile.mobi, id6.me
+dns_exclusion_list=*.cmpassport.com, *.jegotrip.com.cn, *.icitymobile.mobi, id6.me${intranetDomains && intranetDomains.length > 0 ? ', ' + intranetDomains.join(', ') : ''}
 
 [dns]
 server=114.114.114.114
@@ -992,6 +1140,17 @@ ${subscriptionUrl}, tag=Subscription, update-interval=86400, opt-parser=true
 [filter_local]
 `;
 
+            // Add Intranet priority rules
+            if (intranetDomains && intranetDomains.length > 0) {
+                intranetDomains.forEach(domain => {
+                    if (/^\d+\.\d+\.\d+\.\d+(\/\d+)?$/.test(domain)) {
+                        config += `ip-cidr, ${domain}, direct\n`;
+                    } else {
+                        config += `host-suffix, ${domain}, direct\n`;
+                    }
+                });
+            }
+
             // Add custom rules
             if (customRules.trim()) {
                 customRules.trim().split('\n').forEach(rule => {
@@ -1015,6 +1174,8 @@ final, Proxy
             const useChain = document.getElementById('useChain').checked;
             const chainSettings = getChainSettings();
             const customRules = document.getElementById('customRules').value;
+            const intranetText = document.getElementById('intranetUrls').value;
+            const intranetDomains = processIntranetLines(intranetText);
             const selectedRules = getSelectedRules();
 
             // Validate subscription URL
@@ -1032,13 +1193,13 @@ final, Proxy
             let config;
             switch (format) {
                 case 'surge':
-                    config = generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules);
+                    config = generateSurgeConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules, intranetDomains);
                     break;
                 case 'clash':
-                    config = generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules);
+                    config = generateClashConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules, intranetDomains);
                     break;
                 case 'quantumult':
-                    config = generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules);
+                    config = generateQuantumultConfig(subscriptionUrl, useChain, chainSettings, customRules, selectedRules, intranetDomains);
                     break;
             }
 
@@ -1093,6 +1254,7 @@ final, Proxy
             chainUsername: 'opendoor_chainUsername',
             chainPassword: 'opendoor_chainPassword',
             customRules: 'opendoor_customRules',
+            intranetUrls: 'opendoor_intranetUrls',
             selectedRules: 'opendoor_selectedRules'
         };
 
@@ -1125,6 +1287,7 @@ final, Proxy
             document.getElementById('chainUsername').value = loadFromStorage(STORAGE_KEYS.chainUsername, '');
             document.getElementById('chainPassword').value = loadFromStorage(STORAGE_KEYS.chainPassword, '');
             document.getElementById('customRules').value = loadFromStorage(STORAGE_KEYS.customRules, '');
+            document.getElementById('intranetUrls').value = loadFromStorage(STORAGE_KEYS.intranetUrls, '');
 
             // Chain checkbox
             const useChain = loadFromStorage(STORAGE_KEYS.useChain, false);
@@ -1177,6 +1340,9 @@ final, Proxy
             });
             document.getElementById('customRules').addEventListener('input', (e) => {
                 saveToStorage(STORAGE_KEYS.customRules, e.target.value);
+            });
+            document.getElementById('intranetUrls').addEventListener('input', (e) => {
+                saveToStorage(STORAGE_KEYS.intranetUrls, e.target.value);
             });
 
             // Chain checkbox
